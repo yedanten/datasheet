@@ -1,3 +1,4 @@
+fork this project [frederiksen/angular-electron-boilerplate](https://github.com/frederiksen/angular-electron-boilerplate)
 # angular-electron-boilerplate
 
 This template provides a starting point of a modern and secure Electron app.
