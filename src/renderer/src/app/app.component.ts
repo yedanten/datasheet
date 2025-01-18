@@ -21,6 +21,10 @@ export class AppComponent {
       window.electronAPI.saveData(this.hotRegisterer.getInstance(this.id).getData());
     });
     window.electronAPI.importCSV((value: any) => {
+      this.hotRegisterer.getInstance(this.id).updateSettings({
+        colHeaders:value[0]
+      });
+      value.shift();
       this.hotRegisterer.getInstance(this.id).loadData(value);
     });
   }
@@ -46,7 +50,6 @@ export class AppComponent {
     manualColumnResize: true,                   //允许手动拉伸列宽
     manualRowResize: true,                      //允许手动拉伸行高
     bindRowsWithHeaders: true,                  //绑定行标题
-    fixedRowsTop: 1,                            //固定顶部第一行
     //persistentState: true,                    //持久化保存
     contextMenu: true,                          //允许右键菜单
     themeName: 'ht-theme-main',                 //主题
