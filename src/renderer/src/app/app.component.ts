@@ -22,7 +22,10 @@ export class AppComponent {
 
   ngOnInit() {
     window.electronAPI.onGetData(() => {
-      window.electronAPI.saveData(this.hotRegisterer.getInstance(this.id).getData());
+      const colHeaders: Array<any> = this.hotRegisterer.getInstance(this.id).getColHeader();
+      const saveData: Array<any> = this.hotRegisterer.getInstance(this.id).getData();
+      saveData.unshift(colHeaders);
+      window.electronAPI.saveData(saveData);
     });
     window.electronAPI.importCSV((value: Array<any>) => {
       this.updateTabel(value);
