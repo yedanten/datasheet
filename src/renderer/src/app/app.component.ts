@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, afterNextRender } from '@angular/core';
 import { IpcService } from './ipc.service';
 import Handsontable from 'handsontable/base';
 import { HotTableRegisterer } from '@handsontable/angular';
@@ -12,21 +12,30 @@ export class AppComponent {
   title = 'angular-electron-boilerplate';
 
   constructor(private ipcService: IpcService) {
+    afterNextRender(async () => {
+      const value = await window.electronAPI.onInitData();
+      if (value.length > 0) {
+        this.updateTabel(JSON.parse(value));
+      }
+    });
   }
 
-  
-  //data = [];
   ngOnInit() {
-    window.electronAPI.onGetData((value: any) => {
+    window.electronAPI.onGetData(() => {
       window.electronAPI.saveData(this.hotRegisterer.getInstance(this.id).getData());
     });
-    window.electronAPI.importCSV((value: any) => {
-      this.hotRegisterer.getInstance(this.id).updateSettings({
-        colHeaders:value[0]
-      });
-      value.shift();
-      this.hotRegisterer.getInstance(this.id).loadData(value);
+    window.electronAPI.importCSV((value: Array<any>) => {
+      this.updateTabel(value);
     });
+  }
+
+
+  private updateTabel(value: Array<any>) {
+    this.hotRegisterer.getInstance(this.id).updateSettings({
+      colHeaders:value[0]
+    });
+    value.shift();
+    this.hotRegisterer.getInstance(this.id).loadData(value);
   }
 
   private hotRegisterer = new HotTableRegisterer();
@@ -59,7 +68,4 @@ export class AppComponent {
   clickDevTools() {
     this.ipcService.openDevTools();
   }
-  
-
-  //this.hotRegisterer.getInstance(this.id).getData();
 }

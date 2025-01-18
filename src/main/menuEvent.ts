@@ -2,7 +2,7 @@ import { app, dialog, BrowserWindow,MenuItem } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as csv from 'csvtojson';
-import { encryptData, decryptData } from './aes'
+import { encryptData } from './aes'
 
 
 async function importCSV(_:MenuItem, win: BrowserWindow) {
@@ -16,7 +16,7 @@ async function importCSV(_:MenuItem, win: BrowserWindow) {
 			csv({
 				noheader: true,
 				output: "csv"
-			}).fromString(data).then((csvRow: any) => {
+			}).fromString(data).then((csvRow: Array<any>) => {
 				win.webContents.send('dialog:importCSV', csvRow);
 			});			
 		})
@@ -25,19 +25,11 @@ async function importCSV(_:MenuItem, win: BrowserWindow) {
 }
 
 
-async function saveFile(data: any) {
+async function saveFile(data: Object) {
+	const fileDir: string = process.platform === 'darwin' ? path.join(<string>process.env.HOME,'.safeSheet'):path.join(<string>process.env.LOCALAPPDATA, 'safeSheet');
 	const plainData = JSON.stringify(data);
-
 	const fileData = encryptData('test', plainData);	// key, data
-
-	const { canceled, filePath } = await dialog.showSaveDialog({
-		defaultPath: '~/data.sdb',
-		filters: [{ name: '全部文件', extensions: ['*']}],
-		properties: ['dontAddToRecent', 'createDirectory']
-	});
-	if (!canceled) {
-		fs.writeFileSync(filePath, fileData);
-	} 
+	fs.writeFileSync(path.join(fileDir, 'data.sdb'), fileData);
 }
 
 export { importCSV, saveFile }

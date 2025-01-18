@@ -2,17 +2,31 @@ import { app, BrowserWindow, screen, ipcMain, Menu } from 'electron';
 import * as path from 'path';
 import { DtoSystemInfo } from '../ipc-dtos/dtosysteminfo';
 import * as os from 'os';
+import * as fs from 'fs';
 import { importCSV, saveFile } from './menuEvent';
+import { decryptData } from './aes'
 
 let win: BrowserWindow | null = null;
+const fileDir: string = process.platform === 'darwin' ? path.join(<string>process.env.HOME,'.safeSheet'):path.join(<string>process.env.LOCALAPPDATA, 'safeSheet');
+let fileData: string = '';
 
-//app.on('ready', createWindow);
 
 app.on('activate', () => {
   if (win === null) {
     createWindow();
   }
 });
+
+function initEnv() {
+  fs.mkdir(fileDir, { recursive:true }, (err, path) => {
+    if (err) throw err;
+  });
+  fs.readFile(path.join(fileDir,'data.sdb'), 'utf8', (err, data) => {
+    if (!err) {
+      fileData = decryptData('test', Buffer.from(data).toString());
+    }
+  });
+}
 
 function createWindow() {
   const size = screen.getPrimaryDisplay().workAreaSize;
@@ -60,7 +74,7 @@ function createWindow() {
       label: '文件',
       submenu: [
         { label: '导入csv', accelerator: isMac ? 'Command+I': 'Ctrl+I', click: importCSV },
-        { label: '保存', accelerator: isMac ? 'Command+S': 'Ctrl+S', click: () =>{if(win) win.webContents.send('get-data', 1)} },
+        { label: '保存', accelerator: isMac ? 'Command+S': 'Ctrl+S', click: () =>{if(win) win.webContents.send('get-data')} },
         { type: 'separator' },
         isMac ? { label:'关闭', role: 'close' } : { label: '退出', role: 'quit' }
       ]
@@ -79,12 +93,19 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  ipcMain.on('save-data', (_event, value) => {
-    saveFile(value) // will print value to Node console
-  })
-  //ipcMain.handle('dialog:openFile', )
-  createWindow()
+  initEnv();
+  if (win === null) {
+    createWindow();
+  }
+  if (win) {
+    //win.webContents.toggleDevTools();
+    ipcMain.handle('init-data', () => {return fileData});
+  };
 });
+
+ipcMain.on('save-data', (_event, value) => {
+  saveFile(value);
+})
 
 ipcMain.on('dev-tools', () => {
   if (win) {

@@ -1,4 +1,5 @@
 export interface IElectronAPI {
+  onInitData: () => string;
   onGetData: (callback: any) => void;
   importCSV: (callback: any) => void;
   saveData: (value: any) => void;
