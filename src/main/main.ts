@@ -2,7 +2,7 @@ import { app, BrowserWindow, screen, ipcMain, Menu } from 'electron';
 import * as path from 'path';
 import { DtoSystemInfo } from '../ipc-dtos/dtosysteminfo';
 import * as os from 'os';
-import { openFile, saveFile } from './menuEvent';
+import { importCSV, saveFile } from './menuEvent';
 
 let win: BrowserWindow | null = null;
 
@@ -59,19 +59,10 @@ function createWindow() {
     {
       label: '文件',
       submenu: [
-        { label: '打开文件', accelerator: isMac ? 'Command+O': 'Ctrl+O', click: openFile },
-        { label: '导入csv', accelerator: isMac ? 'Command+I': 'Ctrl+I' },
+        { label: '导入csv', accelerator: isMac ? 'Command+I': 'Ctrl+I', click: importCSV },
         { label: '保存', accelerator: isMac ? 'Command+S': 'Ctrl+S', click: () =>{if(win) win.webContents.send('get-data', 1)} },
-        { label: '另存为', accelerator: isMac ? 'Command+Alt+S': 'Ctrl+Alt+S' },
         { type: 'separator' },
         isMac ? { label:'关闭', role: 'close' } : { label: '退出', role: 'quit' }
-      ]
-    },
-    {
-      label: '帮助',
-      role: 'help',
-      submenu: [
-        { label: '关于',  role: 'about'}
       ]
     }
 

@@ -27,6 +27,6 @@ contextBridge.exposeInMainWorld(
 
 contextBridge.exposeInMainWorld('electronAPI',{
   onGetData: (callback: any) => ipcRenderer.on('get-data', (_event, value) => callback(value)),
-  openFile: (callback: any) => ipcRenderer.on('dialog:openFile', (_event, value) => callback(value)),
+  importCSV: (callback: any) => ipcRenderer.on('dialog:importCSV', (_event, value) => callback(value)),
   saveData: (value: any) => ipcRenderer.send('save-data', value)
 })

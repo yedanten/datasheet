@@ -20,8 +20,8 @@ export class AppComponent {
     window.electronAPI.onGetData((value: any) => {
       window.electronAPI.saveData(this.hotRegisterer.getInstance(this.id).getData());
     });
-    window.electronAPI.openFile((value: any) => {
-      this.hotRegisterer.getInstance(this.id).loadData(JSON.parse(value));
+    window.electronAPI.importCSV((value: any) => {
+      this.hotRegisterer.getInstance(this.id).loadData(value);
     });
   }
 

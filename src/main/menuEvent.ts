@@ -1,22 +1,27 @@
 import { app, dialog, BrowserWindow,MenuItem } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as csv from 'csvtojson';
 import { encryptData, decryptData } from './aes'
 
 
-async function openFile(_:MenuItem, win: BrowserWindow) {
+async function importCSV(_:MenuItem, win: BrowserWindow) {
 	const { canceled, filePaths } = await dialog.showOpenDialog({
-		filters: [{ name: '全部文件', extensions: ['*']}],
+		filters: [{ name: '全部文件', extensions: ['csv']}],
 		properties: ['openFile', 'createDirectory', 'dontAddToRecent']
 	})
 	if (!canceled) {
 		fs.readFile(filePaths[0], 'utf8', (err, data) => {
 			if (err) throw err;
-			const plainData = decryptData('test', Buffer.from(data).toString());
-			//console.log(JSON.parse(plainData));
-			win.webContents.send('dialog:openFile', plainData);
+			csv({
+				noheader: true,
+				output: "csv"
+			}).fromString(data).then((csvRow: any) => {
+				win.webContents.send('dialog:importCSV', csvRow);
+			});			
 		})
 	}
+
 }
 
 
@@ -35,4 +40,4 @@ async function saveFile(data: any) {
 	} 
 }
 
-export { openFile, saveFile }
+export { importCSV, saveFile }

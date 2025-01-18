@@ -1,6 +1,6 @@
 export interface IElectronAPI {
   onGetData: (callback: any) => void;
-  openFile: (callback: any) => void;
+  importCSV: (callback: any) => void;
   saveData: (value: any) => void;
 }
 declare global {

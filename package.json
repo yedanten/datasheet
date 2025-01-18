@@ -73,6 +73,7 @@
     "@handsontable/angular": "^15.0.0",
     "@types/crypto-js": "^4.2.2",
     "crypto-js": "^4.2.0",
+    "csvtojson": "^2.0.10",
     "handsontable": "^15.0.0"
   }
 }
