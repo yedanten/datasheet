@@ -98,7 +98,7 @@ app.whenReady().then(() => {
     createWindow();
   }
   if (win) {
-    //win.webContents.toggleDevTools();
+    win.webContents.toggleDevTools();
     ipcMain.handle('init-data', () => {return fileData});
   };
 });
