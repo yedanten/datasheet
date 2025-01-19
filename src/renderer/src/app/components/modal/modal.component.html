@@ -1,0 +1,11 @@
+<div class="modal-header">
+  <h4 class="modal-title">输入新的列名</h4>
+  <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss('Cross click')"></button>
+</div>
+<div class="modal-body">
+  <p><input class="form-control" type="text" [(ngModel)]="name" value="{{ name }}" placeholder="Default input" aria-label="default input example"></p>
+</div>
+<div class="modal-footer">
+  <button type="button" class="btn btn-outline-secondary" (click)="activeModal.close(name)">Save</button>
+  <button type="button" class="btn btn-outline-secondary" (click)="activeModal.close('Close click')">Close</button>
+</div>

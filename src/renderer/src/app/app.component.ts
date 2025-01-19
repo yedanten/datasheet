@@ -1,8 +1,10 @@
-import { Component, afterNextRender } from '@angular/core';
+import { Component, afterNextRender, ViewChild, inject } from '@angular/core';
 import { IpcService } from './ipc.service';
 import Handsontable from 'handsontable/base';
 import { HotTableRegisterer } from '@handsontable/angular';
 import { MenuItemConfig, DetailedSettings } from 'handsontable/plugins/contextMenu';
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
+import { ModalComponent } from './components/modal/modal.component';
 
 @Component({
   selector: 'app-root',
@@ -11,6 +13,8 @@ import { MenuItemConfig, DetailedSettings } from 'handsontable/plugins/contextMe
 })
 export class AppComponent {
   title = 'safe sheet';
+  //@ViewChild('modal', {static: false}) modal: ModalComponent;
+  private modalService = inject(NgbModal);
 
   constructor(private ipcService: IpcService) {
     afterNextRender(async () => {
@@ -77,6 +81,25 @@ export class AppComponent {
           return this.getSelectedLast()?.[0] !== -1;
         },
         callback: () => {
+          const selectedCell: Array<number> = <Array<number>>this.hotRegisterer.getInstance(this.id).getSelectedLast();
+          let colHeaders: Array<string> = <Array<string>>this.hotRegisterer.getInstance(this.id).getColHeader();
+          const modalRef = this.modalService.open(ModalComponent);
+          modalRef.componentInstance.name = this.hotRegisterer.getInstance(this.id).getColHeader(selectedCell[1]);
+          modalRef.result.then(
+            (result) => {
+              console.log(result);
+              colHeaders[selectedCell[1]] = result;
+              console.log(selectedCell[1]);
+              console.log(colHeaders);
+              this.hotRegisterer.getInstance(this.id).updateSettings({
+                colHeaders: colHeaders
+              });
+
+              console.log(this.hotRegisterer.getInstance(this.id).getColHeader());
+            },
+            (reason) => {
+              console.log(reason);
+            });
           console.log(this.hotRegisterer.getInstance(this.id).getSelectedLast());
         }
       },
