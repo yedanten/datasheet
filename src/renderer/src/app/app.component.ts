@@ -1,10 +1,11 @@
 import { Component, afterNextRender, ViewChild, inject } from '@angular/core';
 import { IpcService } from './ipc.service';
-import Handsontable from 'handsontable/base';
+import Handsontable, { CellRange } from 'handsontable/base';
 import { HotTableRegisterer } from '@handsontable/angular';
 import { MenuItemConfig, DetailedSettings } from 'handsontable/plugins/contextMenu';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { ModalComponent } from './components/modal/modal.component';
+import { checkColSelectionDuplicate } from './utils';
 
 @Component({
   selector: 'app-root',
@@ -13,7 +14,6 @@ import { ModalComponent } from './components/modal/modal.component';
 })
 export class AppComponent {
   title = 'safe sheet';
-  //@ViewChild('modal', {static: false}) modal: ModalComponent;
   private modalService = inject(NgbModal);
 
   constructor(private ipcService: IpcService) {
@@ -40,12 +40,22 @@ export class AppComponent {
   }
 
   ngAfterViewInit() {
-    /*this.hotRegisterer.getInstance(this.id).addHook('afterSelection', (...e) => {
-      console.log(this.hotRegisterer.getInstance(this.id).getCellMeta(1,1))
-    })*/
+    this.hotRegisterer.getInstance(this.id).addHook('afterSelection', (...e) => {
+      if (e[0] >= 0 && e[1] >= 0) {
+        console.log(this.hotRegisterer.getInstance(this.id).getCellMeta(e[0], e[1]));
+        //console.log(this.hotRegisterer.getInstance(this.id).getSchema());
+      }
+      
+    });
+    this.hotRegisterer.getInstance(this.id).addHook('afterCreateRow', (...e) => {
+      console.log(e);
+    });
     
   }
 
+  private checkDuplicate(colIndex: number) {
+    console.log(this.hotRegisterer.getInstance(this.id).getDataAtCol(colIndex));
+  }
 
   private updateTabel(value: Array<any>) {
     this.hotRegisterer.getInstance(this.id).updateSettings({
@@ -54,7 +64,6 @@ export class AppComponent {
     value.shift();
     this.hotRegisterer.getInstance(this.id).loadData(value);
   }
-
 
   contextMenuSettings: DetailedSettings = {
     items: {
@@ -87,26 +96,36 @@ export class AppComponent {
           modalRef.componentInstance.name = this.hotRegisterer.getInstance(this.id).getColHeader(selectedCell[1]);
           modalRef.result.then(
             (result) => {
-              console.log(result);
               colHeaders[selectedCell[1]] = result;
-              console.log(selectedCell[1]);
-              console.log(colHeaders);
               this.hotRegisterer.getInstance(this.id).updateSettings({
                 colHeaders: colHeaders
               });
-
-              console.log(this.hotRegisterer.getInstance(this.id).getColHeader());
             },
             (reason) => {
               console.log(reason);
             });
-          console.log(this.hotRegisterer.getInstance(this.id).getSelectedLast());
         }
       },
       check_duplicate: {
-        name: '重复值检查',
-        disabled() {
-          return this.getSelectedLast()?.[0] !== -1;
+        name() {
+         let label = '重复值检查';
+         const ranges: CellRange = <CellRange>this.getSelectedRangeLast();
+         const atLeastOneDuplicate = checkColSelectionDuplicate(ranges, (row: number, col: number) => this.getInstance().getCellMeta(row, col));
+         if (atLeastOneDuplicate) {
+          return `<span class="selected">${String.fromCharCode(10003)}</span>${label}`;
+         }
+         return label;
+        },
+        callback: () => {
+          const ranges: CellRange = <CellRange>this.hotRegisterer.getInstance(this.id).getSelectedRangeLast();
+          const atLeastOneDuplicate = checkColSelectionDuplicate(ranges, (row: number, col: number) => this.hotRegisterer.getInstance(this.id).getCellMeta(row, col));
+          for (let i = 0; i < ranges.to.row; i++) {
+            this.hotRegisterer.getInstance(this.id).setCellMeta(i, ranges.to.col, 'duplicateIgnore', false);
+            this.hotRegisterer.getInstance(this.id).setCellMeta(i, ranges.to.col, 'duplicateCheck', !atLeastOneDuplicate);
+          }
+          if (!atLeastOneDuplicate) {
+            this.checkDuplicate(ranges.to.col);
+          }
         }
       }
     }
@@ -119,7 +138,6 @@ export class AppComponent {
     rowHeaders: true,                           //显示列标题
     width: '100%',                              //容器宽度
     stretchH: 'all',                            //自适应列宽
-    //height: 'auto',                             //容器高度
     filters: true,                              //过滤器
     dropdownMenu: true,                         //下拉式菜单
     columnSorting: true,                        //列排序
@@ -133,8 +151,7 @@ export class AppComponent {
     manualColumnResize: true,                   //允许手动拉伸列宽
     manualRowResize: true,                      //允许手动拉伸行高
     bindRowsWithHeaders: true,                  //绑定行标题
-    //persistentState: true,                    //持久化保存
-    contextMenu: this.contextMenuSettings,                          //允许右键菜单
+    contextMenu: this.contextMenuSettings,      //允许右键菜单
     themeName: 'ht-theme-main',                 //主题
     licenseKey: 'non-commercial-and-evaluation'
   }
