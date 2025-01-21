@@ -6,7 +6,7 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
-import { Component1Component } from './components/component1/component1.component';
+import { HomeComponent } from './components/Home/home.component';
 import { Component2Component } from './components/component2/component2.component';
 import { ModalComponent } from './components/modal/modal.component';
 import { NavlistComponent } from './components/navlist/navlist.component';
@@ -24,7 +24,7 @@ registerAllPlugins();
 @NgModule({
   declarations: [
     AppComponent,
-    Component1Component,
+    HomeComponent,
     Component2Component,
     NavlistComponent,
     ModalComponent

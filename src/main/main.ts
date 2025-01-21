@@ -5,6 +5,7 @@ import * as os from 'os';
 import * as fs from 'fs';
 import { importCSV, saveFile } from './menuEvent';
 import { decryptData } from './aes'
+import * as Duplicate from './duplicate';
 
 let win: BrowserWindow | null = null;
 const fileDir: string = process.platform === 'darwin' ? path.join(<string>process.env.HOME,'.safeSheet'):path.join(<string>process.env.LOCALAPPDATA, 'safeSheet');
@@ -106,6 +107,13 @@ app.whenReady().then(() => {
 ipcMain.on('save-data', (_event, value) => {
   saveFile(value);
 })
+
+ipcMain.on('dup-window', (_event, value) => {
+  if (win) {
+    Duplicate.createWindow(win, value);
+  }
+  
+});
 
 ipcMain.on('dev-tools', () => {
   if (win) {

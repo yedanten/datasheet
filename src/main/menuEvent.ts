@@ -2,7 +2,7 @@ import { app, dialog, BrowserWindow,MenuItem } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as csv from 'csvtojson';
-import { encryptData } from './aes'
+import { encryptData } from './aes';
 
 
 async function importCSV(_:MenuItem, win: BrowserWindow) {
