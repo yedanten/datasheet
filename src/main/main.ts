@@ -11,7 +11,6 @@ let win: BrowserWindow | null = null;
 const fileDir: string = process.platform === 'darwin' ? path.join(<string>process.env.HOME,'.safeSheet'):path.join(<string>process.env.LOCALAPPDATA, 'safeSheet');
 let fileData: string = '';
 
-
 app.on('activate', () => {
   if (win === null) {
     createWindow();
@@ -88,6 +87,12 @@ function createWindow() {
 
   win.loadFile(path.join(app.getAppPath(), 'dist/renderer', 'index.html'));
 
+  win.once('ready-to-show', () => {
+    if (win) {
+      win.webContents.toggleDevTools();
+      win.show();
+    }
+  });
   win.on('closed', () => {
     win = null;
   });
@@ -98,39 +103,15 @@ app.whenReady().then(() => {
   if (win === null) {
     createWindow();
   }
-  if (win) {
-    win.webContents.toggleDevTools();
-    ipcMain.handle('init-data', () => {return fileData});
-  };
 });
-
+ipcMain.handle('init-data', () => {return fileData});
 ipcMain.on('save-data', (_event, value) => {
   saveFile(value);
 })
 
 ipcMain.on('dup-window', (_event, value) => {
   if (win) {
+    console.log(value);
     Duplicate.createWindow(win, value);
   }
-  
 });
-
-ipcMain.on('dev-tools', () => {
-  if (win) {
-    win.webContents.toggleDevTools();
-  }
-});
-
-ipcMain.on('request-systeminfo', () => {
-  const systemInfo = new DtoSystemInfo();
-  systemInfo.Arch = os.arch();
-  systemInfo.Hostname = os.hostname();
-  systemInfo.Platform = os.platform();
-  systemInfo.Release = os.release();
-  const serializedString = systemInfo.serialize();
-  if (win) {
-    win.webContents.send('systeminfo', serializedString);
-  }
-});
-
-

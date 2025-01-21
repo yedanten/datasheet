@@ -7,9 +7,8 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { HomeComponent } from './components/Home/home.component';
-import { Component2Component } from './components/component2/component2.component';
+import { DuplicateComponent } from './components/duplicate/duplicate.component';
 import { ModalComponent } from './components/modal/modal.component';
-import { NavlistComponent } from './components/navlist/navlist.component';
 
 import { HotTableModule } from '@handsontable/angular';
 import { registerAllModules } from 'handsontable/registry';
@@ -25,8 +24,7 @@ registerAllPlugins();
   declarations: [
     AppComponent,
     HomeComponent,
-    Component2Component,
-    NavlistComponent,
+    DuplicateComponent,
     ModalComponent
   ],
   imports: [

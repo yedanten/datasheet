@@ -6,6 +6,7 @@ import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { ModalComponent } from '../modal/modal.component';
 import { checkColSelectionDuplicate } from '../../utils';
 
+
 @Component({
   selector: 'app-home',
   templateUrl: './home.component.html',
@@ -38,11 +39,7 @@ export class HomeComponent implements OnInit {
   }
 
   ngAfterViewInit() {
-   /* this.hotRegisterer.getInstance(this.id).addHook('afterSelection', (...e) => {
-      if (e[0] >= 0 && e[1] >= 0) {
-        console.log(this.hotRegisterer.getInstance(this.id).getCellMeta(e[0], e[1]));
-      }
-    });*/
+    // 创建行补齐重复值检查属性
     this.hotRegisterer.getInstance(this.id).addHook('afterCreateRow', (index: number, amount: number, source?: string) => {
       const totalCol = this.hotRegisterer.getInstance(this.id).countCols();
       let op = 1;
@@ -59,7 +56,7 @@ export class HomeComponent implements OnInit {
     });
   }
 
-  private checkDuplicate(colIndex: number) {
+  private checkDuplicate(colIndex: number): object {
     let duplicateObject = Object.create(null);
     const colData = this.hotRegisterer.getInstance(this.id).getDataAtCol(colIndex);
     colData.forEach((cellData: string | null, rowIndex: number) => {
@@ -72,19 +69,39 @@ export class HomeComponent implements OnInit {
         delete diffData[rowIndex];
         const found = diffData.findIndex((colDataElement: string | undefined | null, diffIndex: number) => {
           if (typeof (colDataElement) !== 'undefined' && colDataElement !== null) {
-            const flag =  ((colDataElement.indexOf(spDataElement+';') & colDataElement.indexOf(';'+spDataElement)) !== -1) || (colDataElement === spDataElement);
+            const expr = new RegExp(`(^${spDataElement};|;${spDataElement};|;${spDataElement}$)`);
+            const flag =  expr.test(colDataElement) || (colDataElement === spDataElement);
             if(flag) {
               if(typeof (duplicateObject[rowIndex+1]) === 'undefined') duplicateObject[rowIndex+1] = [];
               duplicateObject[rowIndex+1].push(diffIndex+1);
-              console.log(`row[${rowIndex+1}] eq row[${diffIndex+1}]`);
             }
           }
         });
         
       });
     });
-    console.log(duplicateObject);
-    window.electronAPI.openDupWindow(duplicateObject);
+    return duplicateObject;
+    //window.electronAPI.openDupWindow(duplicateObject);
+  }
+
+  private showDuplicateWindow(colIndex: number, duplicateMap: any) {
+    console.log(duplicateMap);
+    let data: any = [];
+    const rows = Object.keys(duplicateMap);
+    rows.forEach((key: string) => {
+      let info: any =[];
+      duplicateMap[key].forEach((item: number) => {
+        info.push({
+          row: item,
+          col: colIndex,
+          cellData: this.hotRegisterer.getInstance(this.id).getDataAtCell(item, colIndex),
+          cellMeta: this.hotRegisterer.getInstance(this.id).getCellMeta(item, colIndex)
+        });
+      });
+      data.push({ row_no: key, dupCellsInfo: info});
+    });
+    console.log(data);
+    window.electronAPI.openDupWindow(data);
   }
 
   private updateTabel(value: Array<any>) {
@@ -156,7 +173,10 @@ export class HomeComponent implements OnInit {
           }
 
           if (!atLeastOneDuplicate) {
-            this.checkDuplicate(ranges.to.col);
+            const checkResult = this.checkDuplicate(ranges.to.col);
+            if(Object.keys(checkResult).length > 0) {
+              this.showDuplicateWindow(ranges.to.col, checkResult);
+            }
           }
         }
       }

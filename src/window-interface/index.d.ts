@@ -4,6 +4,7 @@ export interface IElectronAPI {
   importCSV: (callback: any) => void;
   saveData: (value: any) => void;
   openDupWindow: (value: any) => void;
+  setDupObj: (callback: any) => void;
 }
 declare global {
   interface Window {
