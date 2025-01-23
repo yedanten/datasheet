@@ -1,8 +1,9 @@
 <div class="app-div">
-        <p>
-            单元格数据存在重复情况<br />
-            <button type="button" class="btn btn-outline-primary btn-sm">修正</button> 
-            <button type="button" class="btn btn-outline-primary btn-sm">忽略，以后此格子不参与检查</button>
-        </p>
-    <hr>
+        <div *ngFor="let item of dupobj">
+            第<span class="dup-rowline-red">{{ item.row_no }}</span>行数据 <span class="data-block dup-rowline-red">{{ item.selfCellData }} </span> 与<br><br>
+            <span *ngFor="let cell of item.dupCellsInfo">
+                第<span class="dup-rowline-red">{{ cell.row }}</span>行数据 <span class="data-block">{{ cell.cellData }}</span> 存在重复情况<br />
+            </span>
+            <hr>
+        </div>
 </div>

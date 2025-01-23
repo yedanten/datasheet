@@ -111,7 +111,6 @@ ipcMain.on('save-data', (_event, value) => {
 
 ipcMain.on('dup-window', (_event, value) => {
   if (win) {
-    console.log(value);
     Duplicate.createWindow(win, value);
   }
 });

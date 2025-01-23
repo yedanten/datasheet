@@ -22,7 +22,6 @@ export class DuplicateComponent implements OnInit {
   }
 
   ngAfterViewInit() {
-    console.log(this.dupobj);
   }
 
   ngOnInit() {

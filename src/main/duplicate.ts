@@ -30,7 +30,7 @@ function createChildWindow(top: BrowserWindow, value: any) {
 		hash: '/dup'
 	}));
 
-	childwin.webContents.toggleDevTools();
+	//childwin.webContents.toggleDevTools();
 
 	childwin.once('ready-to-show', () => {
 		if (childwin) {
