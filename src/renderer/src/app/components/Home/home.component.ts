@@ -14,12 +14,14 @@ import { checkColSelectionDuplicate } from '../../utils';
 })
 export class HomeComponent implements OnInit {
   private modalService = inject(NgbModal);
+  private init = false;
 
   // 在angular框架加载时注册事件
   constructor() {
     afterNextRender(async () => {
       const value = await window.electronAPI.onInitData();
       if (value.length > 0) {
+        this.init = true;
         this.updateTabel(JSON.parse(value));
       }
     });
@@ -44,6 +46,7 @@ export class HomeComponent implements OnInit {
   ngAfterViewInit() {
     // 创建行补齐重复值检查属性
     this.hotRegisterer.getInstance(this.id).addHook('afterCreateRow', (index: number, amount: number, source?: string) => {
+      window.electronAPI.notClose();
       const totalCol = this.hotRegisterer.getInstance(this.id).countCols();
       let op = 1;
       if (source === 'ContextMenu.rowBelow') {
@@ -58,14 +61,43 @@ export class HomeComponent implements OnInit {
       }
     });
 
+    this.hotRegisterer.getInstance(this.id).addHook('afterCreateCol', (...e) => {
+      window.electronAPI.notClose();
+    });
+
+    this.hotRegisterer.getInstance(this.id).addHook('afterRemoveCol', (...e) => {
+      window.electronAPI.notClose();
+    });
+
+    this.hotRegisterer.getInstance(this.id).addHook('afterRemoveRow', (...e) => {
+      window.electronAPI.notClose();
+    });
+
+    this.hotRegisterer.getInstance(this.id).addHook('afterColumnMove', (...e) => {
+      window.electronAPI.notClose();
+    });
+
+    this.hotRegisterer.getInstance(this.id).addHook('afterRowMove', (...e) => {
+      window.electronAPI.notClose();
+    });
+
     // 编辑数据后的重复值检查
     this.hotRegisterer.getInstance(this.id).addHook('afterChange', (change: any, source: string) => {
+      if (this.init === true && source === 'loadData') {
+        this.init = false;
+      } else {
+        window.electronAPI.notClose();
+      }
       if (source === 'edit' || source === 'CopyPaste.paste') {
-        const cellMeta = this.hotRegisterer.getInstance(this.id).getCellMeta(change[0][0], change[0][1]);
+        //console.log(this.hotRegisterer.getInstance(this.id).toPhysicalColumn(change[0][1]));
+        const row = this.hotRegisterer.getInstance(this.id).toPhysicalRow(change[0][0]);
+        const col = this.hotRegisterer.getInstance(this.id).toPhysicalColumn(change[0][1]);
+        const cellMeta = this.hotRegisterer.getInstance(this.id).getCellMeta(row, col);
+        //console.log(cellMeta);
         if (cellMeta.duplicateCheck && cellMeta.duplicateIgnore === false && change[0][3] !== null && change[0][3] !== '') {
-          const checkResult = this.checkDuplicate(cellMeta.col, cellMeta);
+          const checkResult = this.checkDuplicate(col, cellMeta);
           if(Object.keys(checkResult).length > 0) {
-            this.showDuplicateWindow(cellMeta.col, checkResult);
+            this.showDuplicateWindow(col, checkResult);
           }
         }
       }
@@ -73,7 +105,9 @@ export class HomeComponent implements OnInit {
 
     // 选中单元格后触发
     this.hotRegisterer.getInstance(this.id).addHook('afterSelection', (...e) => {
-      //if (e[0] !== -1) console.log(this.hotRegisterer.getInstance(this.id).getCellsMeta());
+      if (e[0] !== -1) {
+        //console.log(this.hotRegisterer.getInstance(this.id).getCellsMeta());
+      };
     });
   }
 
@@ -81,6 +115,7 @@ export class HomeComponent implements OnInit {
   private checkDuplicate(colIndex: number, editCellMeta?: any): object {
     let duplicateObject = Object.create(null);
     const colData = this.hotRegisterer.getInstance(this.id).getDataAtCol(colIndex);
+    //console.log(colData);
 
     if (typeof editCellMeta === 'undefined') {
       colData.forEach((cellData: string | null, rowIndex: number) => {
@@ -104,7 +139,7 @@ export class HomeComponent implements OnInit {
         });
       });
     } else {
-      const editCellData = this.hotRegisterer.getInstance(this.id).getDataAtCell(editCellMeta.row, editCellMeta.col);
+      const editCellData = this.hotRegisterer.getInstance(this.id).getDataAtCell(editCellMeta.visualRow, editCellMeta.visualCol);
       const spData: Array<string> = editCellData.split(';');
       colData.forEach((cellData: string | null, rowIndex: number) => {
         if (this.hotRegisterer.getInstance(this.id).getCellMeta(rowIndex, colIndex).duplicateIgnore
@@ -186,6 +221,7 @@ export class HomeComponent implements OnInit {
           modalRef.result.then(
             (result) => {
               colHeaders[selectedCell[1]] = result;
+              window.electronAPI.notClose();
               this.hotRegisterer.getInstance(this.id).updateSettings({
                 colHeaders: colHeaders
               });
@@ -286,8 +322,8 @@ export class HomeComponent implements OnInit {
     minRows: 500,                               //最小行数
     minCols: 20,                                //最小列数
     minSpareRows: 3,                            //最小底部空白行数
-    manualColumnMove: true,                     //拖拽列
-    manualRowMove: true,                        //拖拽行
+    //manualColumnMove: true,                     //拖拽列
+    //manualRowMove: true,                        //拖拽行
     manualColumnResize: true,                   //允许手动拉伸列宽
     manualRowResize: true,                      //允许手动拉伸行高
     bindRowsWithHeaders: true,                  //绑定行标题

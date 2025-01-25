@@ -31,5 +31,6 @@ contextBridge.exposeInMainWorld('electronAPI',{
   importCSV: (callback: any) => ipcRenderer.on('dialog:importCSV', (_event, value) => callback(value)),
   saveData: (value: any) => ipcRenderer.send('save-data', value),
   openDupWindow: (value: any) => ipcRenderer.send('dup-window', value),
-  setDupObj: (callback: any) => ipcRenderer.on('set-dupObj', (_event, value) => callback(value))
+  setDupObj: (callback: any) => ipcRenderer.on('set-dupObj', (_event, value) => callback(value)),
+  notClose: () => ipcRenderer.send('not-close')
 })

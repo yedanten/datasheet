@@ -1,15 +1,20 @@
-import { app, BrowserWindow, screen, ipcMain, Menu } from 'electron';
+import { app, BrowserWindow, screen, ipcMain, Menu, dialog } from 'electron';
 import * as path from 'path';
 import { DtoSystemInfo } from '../ipc-dtos/dtosysteminfo';
 import * as os from 'os';
 import * as fs from 'fs';
+import * as url from 'url';
 import { importCSV, saveFile } from './menuEvent';
 import { decryptData } from './aes'
 import * as Duplicate from './duplicate';
+import * as getPass from './getPass';
 
 let win: BrowserWindow | null = null;
+let winCanClosedFlag = true;
 const fileDir: string = process.platform === 'darwin' ? path.join(<string>process.env.HOME,'.safeSheet'):path.join(<string>process.env.LOCALAPPDATA, 'safeSheet');
 let fileData: string = '';
+let key: string | null = null;
+
 
 app.on('activate', () => {
   if (win === null) {
@@ -23,7 +28,12 @@ function initEnv() {
   });
   fs.readFile(path.join(fileDir,'data.sdb'), 'utf8', (err, data) => {
     if (!err) {
-      fileData = decryptData('test', Buffer.from(data).toString());
+      try {
+        fileData = decryptData('test', Buffer.from(data).toString());
+      } catch (e) {
+        console.log(e);
+        app.quit();
+      }
     }
   });
 }
@@ -35,8 +45,9 @@ function createWindow() {
     x: 0,
     y: 0,
     width: size.width/2,
-    height: size.height/2,
+    height: size.height/3*2,
     resizable: true,
+    show: false,
     webPreferences: {
       // Disabled Node integration
       nodeIntegration: false,
@@ -85,29 +96,61 @@ function createWindow() {
   const menu = Menu.buildFromTemplate(template)
   Menu.setApplicationMenu(menu)
 
-  win.loadFile(path.join(app.getAppPath(), 'dist/renderer', 'index.html'));
+  //win.loadFile(path.join(app.getAppPath(), 'dist/renderer', 'index.html'));
+  
+  win.loadURL(url.format({
+    pathname: path.join(app.getAppPath(), 'dist/renderer', 'index.html'),
+    protocol: 'file:',
+    slashes: true,
+    hash: '/'
+  }));
 
   win.once('ready-to-show', () => {
     if (win) {
-      win.webContents.toggleDevTools();
+      //win.webContents.toggleDevTools();
       win.show();
     }
   });
+
+  win.on('close', async (event) => {
+    if (!winCanClosedFlag) {
+      event.preventDefault();
+      let choice = await dialog.showMessageBox(win!, {
+        title: "do you want to close",
+        message: "您的修改暂未保存,是否放弃修改并关闭程序",
+        buttons: ["否", "是"]
+      });
+      if (choice.response == 1) {
+        winCanClosedFlag = true;
+        win!.close();
+        return;
+      }
+    }
+  });
+
   win.on('closed', () => {
     win = null;
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  //key = await getPass.getKey();
   initEnv();
   if (win === null) {
     createWindow();
   }
 });
+
+
 ipcMain.handle('init-data', () => {return fileData});
 ipcMain.on('save-data', (_event, value) => {
   saveFile(value);
+  winCanClosedFlag = true;
 })
+
+ipcMain.on('not-close', (_event) => {
+  winCanClosedFlag = false;
+});
 
 ipcMain.on('dup-window', (_event, value) => {
   if (win) {

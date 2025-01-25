@@ -5,6 +5,7 @@ export interface IElectronAPI {
   saveData: (value: any) => void;
   openDupWindow: (value: any) => void;
   setDupObj: (callback: any) => void;
+  notClose: () => void;
 }
 declare global {
   interface Window {
