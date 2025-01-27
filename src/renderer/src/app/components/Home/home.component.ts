@@ -24,6 +24,13 @@ export class HomeComponent implements OnInit {
         this.init = true;
         this.updateTabel(JSON.parse(value));
       }
+      const cellsMeta = await window.electronAPI.onInitMeta();
+      if (cellsMeta.length > 0) {
+        const cellsMetaObj = JSON.parse(cellsMeta);
+        cellsMetaObj.forEach((element: any) => {
+          this.hotRegisterer.getInstance(this.id).setCellMetaObject(element.row, element.col, {duplicateCheck: element.duplicateCheck, duplicateIgnore:element.duplicateIgnore})
+        });
+      }
     });
 
   }
@@ -34,7 +41,9 @@ export class HomeComponent implements OnInit {
       const colHeaders: Array<any> = this.hotRegisterer.getInstance(this.id).getColHeader();
       const saveData: Array<any> = this.hotRegisterer.getInstance(this.id).getData();
       saveData.unshift(colHeaders);
+      const cellsMeta: Array<any> = this.hotRegisterer.getInstance(this.id).getCellsMeta();
       window.electronAPI.saveData(saveData);
+      window.electronAPI.saveMeta(cellsMeta);
     });
     window.electronAPI.importCSV((value: Array<any>) => {
       this.updateTabel(value);
@@ -103,12 +112,12 @@ export class HomeComponent implements OnInit {
       }
     });
 
-    // 选中单元格后触发
-    this.hotRegisterer.getInstance(this.id).addHook('afterSelection', (...e) => {
+    // 选中单元格后触发,调试用
+    /*this.hotRegisterer.getInstance(this.id).addHook('afterSelection', (...e) => {
       if (e[0] !== -1) {
-        //console.log(this.hotRegisterer.getInstance(this.id).getCellsMeta());
+        console.log(this.hotRegisterer.getInstance(this.id).getCellsMeta());
       };
-    });
+    });*/
   }
 
   // 检查单元格重复情况

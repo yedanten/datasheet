@@ -5,7 +5,7 @@ import * as os from 'os';
 import * as fsPromises from 'fs/promises';
 import * as fs from 'fs';
 import * as url from 'url';
-import { importCSV, saveFile } from './menuEvent';
+import { importCSV, saveFile, saveMeta } from './menuEvent';
 import { decryptData } from './aes'
 import * as Duplicate from './duplicate';
 
@@ -13,6 +13,7 @@ let win: BrowserWindow | null = null;
 let winCanClosedFlag = true;
 const fileDir: string = process.platform === 'darwin' ? path.join(<string>process.env.HOME,'.safeSheet'):path.join(<string>process.env.LOCALAPPDATA, 'safeSheet');
 let fileData: string = '';
+let meta: string = '';
 let key: string | null = null;
 
 
@@ -26,7 +27,7 @@ function fileNotFind(reason: any) {
   throw new Error("file not found", { cause: reason });
 }
 
-async function initEnv(inputPass: string): Promise<boolean> {
+async function loadFileData(inputPass: string): Promise<boolean> {
   const flag = fsPromises.mkdir(fileDir, { recursive:true })
     .then((value) => {
       return fsPromises.readFile(path.join(fileDir,'data.sdb'), 'utf8')
@@ -47,6 +48,22 @@ async function initEnv(inputPass: string): Promise<boolean> {
       }
     });
   return flag;
+}
+
+async function loadMetaData(inputPass: string) {
+  fs.readFile(path.join(fileDir,'meta.sdb'),'utf8', (err, data) => {
+    if(!err) {
+      meta = decryptData(inputPass!, Buffer.from(data).toString());
+    }
+  });
+}
+
+async function initEnv(inputPass: string): Promise<boolean> {
+  const loadFileFlag = await loadFileData(inputPass);
+  if (loadFileFlag) {
+    await loadMetaData(inputPass);
+  }
+  return loadFileFlag;
 
 }
 
@@ -97,7 +114,7 @@ function createWindow() {
       label: '文件',
       submenu: [
         { label: '导入csv', accelerator: isMac ? 'Command+I': 'Ctrl+I', click: importCSV },
-        { label: '保存', accelerator: isMac ? 'Command+S': 'Ctrl+S', click: () =>{if(win) win.webContents.send('get-data')} },
+        { label: '保存', accelerator: isMac ? 'Command+S': 'Ctrl+S', click: () =>{win!.webContents.send('get-data')} },
         { type: 'separator' },
         isMac ? { label:'关闭', role: 'close' } : { label: '退出', role: 'quit' }
       ]
@@ -117,7 +134,7 @@ function createWindow() {
 
   win.once('ready-to-show', () => {
     if (win) {
-      //win.webContents.toggleDevTools();
+      win.webContents.toggleDevTools();
       win.show();
     }
   });
@@ -144,7 +161,6 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
-  //initEnv();
   if (win === null) {
     createWindow();
   }
@@ -152,6 +168,9 @@ app.whenReady().then(async () => {
 
 
 ipcMain.handle('init-data', () => {return fileData});
+ipcMain.handle('init-meta', async () => {
+  return meta;
+});
 ipcMain.handle('get-pass', () => {return key});
 ipcMain.handle('verify-pass', (_event, data) => {
   return initEnv(data);
@@ -170,7 +189,12 @@ ipcMain.handle('first-check', () => {
 ipcMain.on('save-data', (_event, value) => {
   saveFile(value, key!);
   winCanClosedFlag = true;
-})
+});
+
+ipcMain.on('save-meta', (_event, value) => {
+  saveMeta(value, key!);
+  winCanClosedFlag = true;
+});
 
 ipcMain.on('not-close', (_event) => {
   winCanClosedFlag = false;

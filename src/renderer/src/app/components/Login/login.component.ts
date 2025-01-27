@@ -22,10 +22,10 @@ export class LoginComponent implements OnInit {
 
   ngOnInit() {
     const p = window.electronAPI.onFirstStartup();
+
     p.then((value) => {
       this.firstStartup = value;
     })
-    console.log(this.firstStartup);
   }
 
   async getVal() {

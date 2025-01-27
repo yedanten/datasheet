@@ -24,7 +24,6 @@ async function importCSV(_:MenuItem, win: BrowserWindow) {
 
 }
 
-
 async function saveFile(data: Object, key: string) {
 	const fileDir: string = process.platform === 'darwin' ? path.join(<string>process.env.HOME,'.safeSheet'):path.join(<string>process.env.LOCALAPPDATA, 'safeSheet');
 	const plainData = JSON.stringify(data);
@@ -32,4 +31,11 @@ async function saveFile(data: Object, key: string) {
 	fs.writeFileSync(path.join(fileDir, 'data.sdb'), fileData);
 }
 
-export { importCSV, saveFile }
+async function saveMeta(data: Array<any>, key: string) {
+	const fileDir: string = process.platform === 'darwin' ? path.join(<string>process.env.HOME,'.safeSheet'):path.join(<string>process.env.LOCALAPPDATA, 'safeSheet');
+	const plainData = JSON.stringify(data);
+	const fileData = encryptData(key, plainData);	// key, data
+	fs.writeFileSync(path.join(fileDir, 'meta.sdb'), fileData);
+}
+
+export { importCSV, saveFile, saveMeta }
