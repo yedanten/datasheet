@@ -1,6 +1,5 @@
 import { app, BrowserWindow, screen, ipcMain, Menu, dialog } from 'electron';
 import * as path from 'path';
-import { DtoSystemInfo } from '../ipc-dtos/dtosysteminfo';
 import * as os from 'os';
 import * as fsPromises from 'fs/promises';
 import * as fs from 'fs';
@@ -17,16 +16,12 @@ let meta: string = '';
 let key: string | null = null;
 
 
-app.on('activate', () => {
-  if (win === null) {
-    createWindow();
-  }
-});
-
+// 文件没找到主动抛出错误，用于下方链式调用判断是否首次启动程序
 function fileNotFind(reason: any) {
   throw new Error("file not found", { cause: reason });
 }
 
+// 加载表格数据
 async function loadFileData(inputPass: string): Promise<boolean> {
   const flag = fsPromises.mkdir(fileDir, { recursive:true })
     .then((value) => {
@@ -50,6 +45,7 @@ async function loadFileData(inputPass: string): Promise<boolean> {
   return flag;
 }
 
+// 加载单元格元数据
 async function loadMetaData(inputPass: string) {
   fs.readFile(path.join(fileDir,'meta.sdb'),'utf8', (err, data) => {
     if(!err) {
@@ -58,6 +54,7 @@ async function loadMetaData(inputPass: string) {
   });
 }
 
+// 初始化数据
 async function initEnv(inputPass: string): Promise<boolean> {
   const loadFileFlag = await loadFileData(inputPass);
   if (loadFileFlag) {
@@ -67,7 +64,9 @@ async function initEnv(inputPass: string): Promise<boolean> {
 
 }
 
+// 创建窗口
 function createWindow() {
+  // 获取显示器大小
   const size = screen.getPrimaryDisplay().workAreaSize;
 
   win = new BrowserWindow({
@@ -87,10 +86,8 @@ function createWindow() {
     }
   });
 
-  // https://stackoverflow.com/a/58548866/600559
-  //Menu.setApplicationMenu(null);
+  // 针对macos，额外多生成一个菜单栏
   const isMac = process.platform === 'darwin'
-
   const template: Object[] = [
     // { role: 'appMenu' }
     ...(isMac
@@ -109,7 +106,6 @@ function createWindow() {
           ]
         }]
       : []),
-    // { role: 'fileMenu' }
     {
       label: '文件',
       submenu: [
@@ -122,6 +118,7 @@ function createWindow() {
 
   ]
 
+  // 将菜单栏设置到窗口上
   const menu = Menu.buildFromTemplate(template)
   Menu.setApplicationMenu(menu)
   
@@ -132,13 +129,15 @@ function createWindow() {
     hash: '/home'
   }));
 
+  // 优雅显示，避免闪烁
   win.once('ready-to-show', () => {
     if (win) {
-      win.webContents.toggleDevTools();
+      //win.webContents.toggleDevTools();
       win.show();
     }
   });
 
+  // 拦截关闭事件，检查数据是否保存
   win.on('close', async (event) => {
     if (!winCanClosedFlag) {
       event.preventDefault();
@@ -160,21 +159,25 @@ function createWindow() {
   });
 }
 
+// macos特有事件
+app.on('activate', () => {
+  if (win === null) {
+    createWindow();
+  }
+});
+
+// 优雅启动
 app.whenReady().then(async () => {
   if (win === null) {
     createWindow();
   }
 });
 
-
-ipcMain.handle('init-data', () => {return fileData});
-ipcMain.handle('init-meta', async () => {
-  return meta;
-});
+// rendener与主进程双向通信部分
+ipcMain.handle('init-data', () => { return fileData });
+ipcMain.handle('init-meta', () => { return meta });
 ipcMain.handle('get-pass', () => {return key});
-ipcMain.handle('verify-pass', (_event, data) => {
-  return initEnv(data);
-});
+ipcMain.handle('verify-pass', (_event, data) => { return initEnv(data) });
 ipcMain.handle('first-check', () => {
   const exist = fsPromises.access(path.join(fileDir,'data.sdb'), fs.constants.F_OK);
   const res = exist.then(() => {
@@ -182,10 +185,10 @@ ipcMain.handle('first-check', () => {
   }).catch((error) => {
     return true;
   });
-  
   return res;
 });
 
+// rendener与主进程单向通信部分
 ipcMain.on('save-data', (_event, value) => {
   saveFile(value, key!);
   winCanClosedFlag = true;

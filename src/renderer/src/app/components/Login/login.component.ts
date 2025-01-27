@@ -21,8 +21,8 @@ export class LoginComponent implements OnInit {
   constructor(public router: Router) { }
 
   ngOnInit() {
+    // Angular组件初始化不能设为异步，存在未定义风险，通信是异步行为，无法使用await语法糖获取promise内的值
     const p = window.electronAPI.onFirstStartup();
-
     p.then((value) => {
       this.firstStartup = value;
     })
