@@ -8,6 +8,7 @@ export interface IElectronAPI {
   notClose: () => void;
   onGetPassword: () => string | null;
   onVerifyPassword: (value: string ) => Promise<boolean>;
+  onFirstStartup: () => Promise<boolean>;
 }
 declare global {
   interface Window {

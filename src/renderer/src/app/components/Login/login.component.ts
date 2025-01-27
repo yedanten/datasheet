@@ -12,6 +12,7 @@ export class LoginComponent implements OnInit {
   @Output() passwordChange = new EventEmitter();
 
   showFailed = false;
+  firstStartup = false;
 
   onNameChange(event: any) {
     this.password = event.target.value;
@@ -20,6 +21,11 @@ export class LoginComponent implements OnInit {
   constructor(public router: Router) { }
 
   ngOnInit() {
+    const p = window.electronAPI.onFirstStartup();
+    p.then((value) => {
+      this.firstStartup = value;
+    })
+    console.log(this.firstStartup);
   }
 
   async getVal() {

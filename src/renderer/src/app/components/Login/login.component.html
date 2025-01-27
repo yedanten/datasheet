@@ -3,7 +3,10 @@
     <div class="container-sm">
       <div class="mb-3">
         <div class="input-group has-validation">
-          <label for="validationServerUsername" class="form-label">密码</label>
+          <label for="validationServerUsername" class="form-label">密码:</label>
+          @if(firstStartup) {
+            <span><small>首次使用本程序，请先设置密码，请妥善保管密码，如若遗失，数据将全部丢失<</small></span>
+          }
           <input type="password" class="form-control" [class.is-invalid]="showFailed" id="validationServerUsername" aria-describedby="inputGroupPrepend3 validationServerUsernameFeedback" required [(ngModel)]="password">
           <div id="validationServerUsernameFeedback" class="invalid-feedback">
             密码错误

@@ -3,6 +3,7 @@ import * as path from 'path';
 import { DtoSystemInfo } from '../ipc-dtos/dtosysteminfo';
 import * as os from 'os';
 import * as fsPromises from 'fs/promises';
+import * as fs from 'fs';
 import * as url from 'url';
 import { importCSV, saveFile } from './menuEvent';
 import { decryptData } from './aes'
@@ -116,7 +117,7 @@ function createWindow() {
 
   win.once('ready-to-show', () => {
     if (win) {
-      win.webContents.toggleDevTools();
+      //win.webContents.toggleDevTools();
       win.show();
     }
   });
@@ -154,6 +155,16 @@ ipcMain.handle('init-data', () => {return fileData});
 ipcMain.handle('get-pass', () => {return key});
 ipcMain.handle('verify-pass', (_event, data) => {
   return initEnv(data);
+});
+ipcMain.handle('first-check', () => {
+  const exist = fsPromises.access(path.join(fileDir,'data.sdb'), fs.constants.F_OK);
+  const res = exist.then(() => {
+    return false;
+  }).catch((error) => {
+    return true;
+  });
+  
+  return res;
 });
 
 ipcMain.on('save-data', (_event, value) => {

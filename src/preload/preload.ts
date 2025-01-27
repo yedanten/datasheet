@@ -34,5 +34,6 @@ contextBridge.exposeInMainWorld('electronAPI',{
   setDupObj: (callback: any) => ipcRenderer.on('set-dupObj', (_event, value) => callback(value)),
   notClose: () => ipcRenderer.send('not-close'),
   onGetPassword: () => ipcRenderer.invoke('get-pass'),
-  onVerifyPassword: (value: string) => ipcRenderer.invoke('verify-pass', value)
+  onVerifyPassword: (value: string) => ipcRenderer.invoke('verify-pass', value),
+  onFirstStartup: () => ipcRenderer.invoke('first-check')
 })
