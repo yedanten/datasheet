@@ -3,7 +3,7 @@ import Handsontable, { CellRange } from 'handsontable/base';
 import { HotTableRegisterer } from '@handsontable/angular';
 import { MenuItemConfig, DetailedSettings } from 'handsontable/plugins/contextMenu';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
-import { ModalComponent } from '../modal/modal.component';
+import { ModalComponent } from '../Modal/modal.component';
 import { checkColSelectionDuplicate } from '../../utils';
 
 
@@ -88,7 +88,7 @@ export class HomeComponent implements OnInit {
       } else {
         window.electronAPI.notClose();
       }
-      if (source === 'edit' || source === 'CopyPaste.paste') {
+      if (source !== 'loadData') {
         //console.log(this.hotRegisterer.getInstance(this.id).toPhysicalColumn(change[0][1]));
         const row = this.hotRegisterer.getInstance(this.id).toPhysicalRow(change[0][0]);
         const col = this.hotRegisterer.getInstance(this.id).toPhysicalColumn(change[0][1]);

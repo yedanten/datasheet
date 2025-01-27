@@ -6,6 +6,8 @@ export interface IElectronAPI {
   openDupWindow: (value: any) => void;
   setDupObj: (callback: any) => void;
   notClose: () => void;
+  onGetPassword: () => string | null;
+  onVerifyPassword: (value: string ) => Promise<boolean>;
 }
 declare global {
   interface Window {

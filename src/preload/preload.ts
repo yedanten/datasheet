@@ -32,5 +32,7 @@ contextBridge.exposeInMainWorld('electronAPI',{
   saveData: (value: any) => ipcRenderer.send('save-data', value),
   openDupWindow: (value: any) => ipcRenderer.send('dup-window', value),
   setDupObj: (callback: any) => ipcRenderer.on('set-dupObj', (_event, value) => callback(value)),
-  notClose: () => ipcRenderer.send('not-close')
+  notClose: () => ipcRenderer.send('not-close'),
+  onGetPassword: () => ipcRenderer.invoke('get-pass'),
+  onVerifyPassword: (value: string) => ipcRenderer.invoke('verify-pass', value)
 })

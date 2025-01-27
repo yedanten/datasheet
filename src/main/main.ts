@@ -2,12 +2,11 @@ import { app, BrowserWindow, screen, ipcMain, Menu, dialog } from 'electron';
 import * as path from 'path';
 import { DtoSystemInfo } from '../ipc-dtos/dtosysteminfo';
 import * as os from 'os';
-import * as fs from 'fs';
+import * as fsPromises from 'fs/promises';
 import * as url from 'url';
 import { importCSV, saveFile } from './menuEvent';
 import { decryptData } from './aes'
 import * as Duplicate from './duplicate';
-import * as getPass from './getPass';
 
 let win: BrowserWindow | null = null;
 let winCanClosedFlag = true;
@@ -22,20 +21,32 @@ app.on('activate', () => {
   }
 });
 
-function initEnv() {
-  fs.mkdir(fileDir, { recursive:true }, (err, path) => {
-    if (err) throw err;
-  });
-  fs.readFile(path.join(fileDir,'data.sdb'), 'utf8', (err, data) => {
-    if (!err) {
-      try {
-        fileData = decryptData('test', Buffer.from(data).toString());
-      } catch (e) {
-        console.log(e);
-        app.quit();
+function fileNotFind(reason: any) {
+  throw new Error("file not found", { cause: reason });
+}
+
+async function initEnv(inputPass: string): Promise<boolean> {
+  const flag = fsPromises.mkdir(fileDir, { recursive:true })
+    .then((value) => {
+      return fsPromises.readFile(path.join(fileDir,'data.sdb'), 'utf8')
+    }).then((value) => {
+      return new Promise((resolve, reject) => {
+        resolve(decryptData(inputPass, Buffer.from(value).toString()));
+      });
+    }, fileNotFind).then((value) => {
+      fileData = <string>value;
+      key = inputPass;
+      return true;
+    }).catch((e) => {
+      if (e.cause) {
+        key = inputPass;
+        return true;
+      } else {
+        return false;
       }
-    }
-  });
+    });
+  return flag;
+
 }
 
 function createWindow() {
@@ -95,19 +106,17 @@ function createWindow() {
 
   const menu = Menu.buildFromTemplate(template)
   Menu.setApplicationMenu(menu)
-
-  //win.loadFile(path.join(app.getAppPath(), 'dist/renderer', 'index.html'));
   
   win.loadURL(url.format({
     pathname: path.join(app.getAppPath(), 'dist/renderer', 'index.html'),
     protocol: 'file:',
     slashes: true,
-    hash: '/'
+    hash: '/home'
   }));
 
   win.once('ready-to-show', () => {
     if (win) {
-      //win.webContents.toggleDevTools();
+      win.webContents.toggleDevTools();
       win.show();
     }
   });
@@ -134,8 +143,7 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
-  //key = await getPass.getKey();
-  initEnv();
+  //initEnv();
   if (win === null) {
     createWindow();
   }
@@ -143,8 +151,13 @@ app.whenReady().then(async () => {
 
 
 ipcMain.handle('init-data', () => {return fileData});
+ipcMain.handle('get-pass', () => {return key});
+ipcMain.handle('verify-pass', (_event, data) => {
+  return initEnv(data);
+});
+
 ipcMain.on('save-data', (_event, value) => {
-  saveFile(value);
+  saveFile(value, key!);
   winCanClosedFlag = true;
 })
 

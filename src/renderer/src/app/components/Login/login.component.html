@@ -1,0 +1,16 @@
+<div id="app-login">
+  <div class="d-flex align-items-center" id="login-box">
+    <div class="container-sm">
+      <div class="mb-3">
+        <div class="input-group has-validation">
+          <label for="validationServerUsername" class="form-label">密码</label>
+          <input type="password" class="form-control" [class.is-invalid]="showFailed" id="validationServerUsername" aria-describedby="inputGroupPrepend3 validationServerUsernameFeedback" required [(ngModel)]="password">
+          <div id="validationServerUsernameFeedback" class="invalid-feedback">
+            密码错误
+          </div>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary" (click)="getVal()">确定</button>
+    </div>
+  </div>
+</div>
