@@ -1,5 +1,6 @@
 {
   "name": "angular-electron-boilerplate",
+  "productName": "Safe Sheet",
   "version": "0.0.0",
   "main": "./dist/main/electron-main.js",
   "scripts": {

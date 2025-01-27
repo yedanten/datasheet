@@ -89,7 +89,6 @@ function createWindow() {
   // 针对macos，额外多生成一个菜单栏
   const isMac = process.platform === 'darwin'
   const template: Object[] = [
-    // { role: 'appMenu' }
     ...(isMac
       ? [{
           label: app.name,
