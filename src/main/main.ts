@@ -131,7 +131,7 @@ function createWindow() {
   // 优雅显示，避免闪烁
   win.once('ready-to-show', () => {
     if (win) {
-      //win.webContents.toggleDevTools();
+      win.webContents.toggleDevTools();
       win.show();
     }
   });
