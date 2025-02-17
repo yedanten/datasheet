@@ -1,6 +1,7 @@
 <div id="app-login">
   <div class="d-flex align-items-center" id="login-box">
     <div class="container-sm">
+      <form>
       @if(firstStartup) {
         <div><small>首次使用本程序，请先设置密码，请妥善保管密码，如若遗失，数据将全部丢失</small></div><br />
       }
@@ -14,6 +15,7 @@
         </div>
       </div>
       <button type="submit" class="btn btn-primary" (click)="getVal()">确定</button>
+      </form>
     </div>
   </div>
 </div>
