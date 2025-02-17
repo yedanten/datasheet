@@ -4,6 +4,7 @@ import { HotTableRegisterer } from '@handsontable/angular';
 import { MenuItemConfig, DetailedSettings } from 'handsontable/plugins/contextMenu';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { ModalComponent } from '../Modal/modal.component';
+import { ChangepassComponent } from '../ChangePass/changepass.component';
 import { checkColSelectionDuplicate } from '../../utils';
 
 @Component({
@@ -33,6 +34,8 @@ export class HomeComponent implements OnInit {
           this.hotRegisterer.getInstance(this.id).setCellMetaObject(element.row, element.col, {duplicateCheck: element.duplicateCheck, duplicateIgnore:element.duplicateIgnore})
         });
       }
+      
+      
     });
 
   }
@@ -51,6 +54,22 @@ export class HomeComponent implements OnInit {
     window.electronAPI.importCSV((value: Array<any>) => {
       console.log(value.length);
       this.updateTabel(value);
+    });
+    window.electronAPI.onChangePass(() => {
+      const modalRef = this.modalService.open(ChangepassComponent);
+      modalRef.result.then(
+        (result) => {
+          window.electronAPI.onChangeKey(result);
+          const colHeaders: Array<any> = this.hotRegisterer.getInstance(this.id).getColHeader();
+          const saveData: Array<any> = this.hotRegisterer.getInstance(this.id).getData();
+          saveData.unshift(colHeaders);
+          const cellsMeta: Array<any> = this.hotRegisterer.getInstance(this.id).getCellsMeta();
+          window.electronAPI.saveData(saveData);
+          window.electronAPI.saveMeta(cellsMeta);
+        },
+        (reason) => {
+          console.log(reason);
+      });
     });
     
   }

@@ -1,0 +1,14 @@
+<div class="modal-header">
+  <h4 class="modal-title">修改密码</h4>
+  <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss('Cross click')"></button>
+</div>
+<div class="modal-body">
+  <div class="mb-3">
+    <label for="inputPassword1" class="form-label">新密码</label>
+    <input id="inputPassword1" class="form-control" type="text" [(ngModel)]="pass" value="{{ pass }}" placeholder="新密码" required>
+  </div>
+</div>
+<div class="modal-footer">
+  <button type="submit" class="btn btn-outline-secondary" (click)="activeModal.close(pass)">确定</button>
+  <button type="button" class="btn btn-outline-secondary" (click)="activeModal.dismiss('Close click')">关闭</button>
+</div>

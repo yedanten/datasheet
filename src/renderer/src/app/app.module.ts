@@ -10,6 +10,7 @@ import { HomeComponent } from './components/Home/home.component';
 import { DuplicateComponent } from './components/Duplicate/duplicate.component';
 import { ModalComponent } from './components/Modal/modal.component';
 import { LoginComponent } from './components/Login/login.component';
+import { ChangepassComponent } from './components/ChangePass/changepass.component';
 
 import { HotTableModule } from '@handsontable/angular';
 import { registerAllModules } from 'handsontable/registry';
@@ -27,7 +28,8 @@ registerAllPlugins();
     HomeComponent,
     DuplicateComponent,
     ModalComponent,
-    LoginComponent
+    LoginComponent,
+    ChangepassComponent
   ],
   imports: [
     BrowserModule,

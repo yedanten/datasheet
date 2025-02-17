@@ -11,6 +11,8 @@ export interface IElectronAPI {
   onFirstStartup: () => Promise<boolean>;
   saveMeta: (value: any) => void;
   onInitMeta: () => string;
+  onChangePass: (callback: any) => void;
+  onChangeKey: (value: string) => void;
 }
 declare global {
   interface Window {

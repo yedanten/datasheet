@@ -14,5 +14,7 @@ contextBridge.exposeInMainWorld('electronAPI',{
   onVerifyPassword: (value: string) => ipcRenderer.invoke('verify-pass', value),
   onFirstStartup: () => ipcRenderer.invoke('first-check'),
   saveMeta: (value: any) => ipcRenderer.send('save-meta', value),
-  onInitMeta: () => ipcRenderer.invoke('init-meta')
+  onInitMeta: () => ipcRenderer.invoke('init-meta'),
+  onChangePass: (callback: any) => ipcRenderer.on('change-pass', (_event) => callback()),
+  onChangeKey: (value: string) => ipcRenderer.invoke('change-key', value)
 })

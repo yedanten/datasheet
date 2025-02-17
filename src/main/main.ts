@@ -109,7 +109,9 @@ function createWindow() {
       label: '文件',
       submenu: [
         { label: '导入csv', accelerator: isMac ? 'Command+I': 'Ctrl+I', click: importCSV },
-        { label: '保存', accelerator: isMac ? 'Command+S': 'Ctrl+S', click: () =>{win!.webContents.send('get-data')} },
+        { label: '保存', accelerator: isMac ? 'Command+S': 'Ctrl+S', click: () => { win!.webContents.send('get-data') } },
+        { type: 'separator' },
+        { label: '修改密码', accelerator:isMac ? 'Command+P': 'Ctrl+P', click: () => { win!.webContents.send('change-pass') } },
         { type: 'separator' },
         isMac ? { label:'关闭', role: 'close' } : { label: '退出', role: 'quit' }
       ]
@@ -186,6 +188,9 @@ ipcMain.handle('first-check', () => {
   });
   return res;
 });
+ipcMain.handle('change-key', (_event, newpass) => {
+  key = newpass;
+})
 
 // rendener与主进程单向通信部分
 ipcMain.on('save-data', (_event, value) => {
