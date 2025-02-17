@@ -17,6 +17,7 @@ async function importCSV(_:MenuItem, win: BrowserWindow) {
         noheader: true,
         output: "csv"
       }).fromString(data).then((csvRow: Array<any>) => {
+        console.log(csvRow);
         win.webContents.send('dialog:importCSV', csvRow);
       });
     })

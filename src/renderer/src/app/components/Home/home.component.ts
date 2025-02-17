@@ -49,6 +49,7 @@ export class HomeComponent implements OnInit {
       window.electronAPI.saveMeta(cellsMeta);
     });
     window.electronAPI.importCSV((value: Array<any>) => {
+      console.log(value.length);
       this.updateTabel(value);
     });
     
@@ -355,9 +356,11 @@ export class HomeComponent implements OnInit {
     columnSorting: true,                        //列排序
     language: 'zh-CN',                          //语言
     maxRows: 999999,                            //最大行数
-    minRows: 500,                               //最小行数
-    minCols: 20,                                //最小列数
-    minSpareRows: 3,                            //最小底部空白行数
+    minRows: 1,                                 //最小行数
+    minCols: 1,                                 //最小列数
+    minSpareRows: 2,                            //最小底部空白行数
+    startRows:1,                                // 修改起始默认最小列数
+    startCols:1,                                // 修改起始默认最小行数
     // 控件BUG，行列拖拽后在插入行列，将会引起列头绑定失败
     //manualColumnMove: true,                     //拖拽列
     //manualRowMove: true,                        //拖拽行
