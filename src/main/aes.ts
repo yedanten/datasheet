@@ -16,18 +16,29 @@ function encryptData(keyStr: string, plainData: string): string {
 	return encodetext;
 }
 
-function decryptData(keyStr: string, enData: string): string {
+async function decryptData(keyStr: string, enData: string): Promise<any> {
+	let decodetext = "";
 	let buff = Buffer.alloc(32, 'a');
 	buff.write(keyStr,0);
 	keyStr = buff.toString();
 	const text = enData.replace(/[\r\n]/g,"");
 
-	let decodetext = CryptoJS.AES.decrypt(text, CryptoJS.enc.Utf8.parse(keyStr), {
-		iv: CryptoJS.enc.Utf8.parse(keyStr),
-		mode: CryptoJS.mode.CBC,
-		padding: CryptoJS.pad.Pkcs7,
-	}).toString(CryptoJS.enc.Utf8);
-	return decodetext;
+	const p = new Promise((resolve, reject) => {
+		try {
+			const dec = CryptoJS.AES.decrypt(text, CryptoJS.enc.Utf8.parse(keyStr), {
+				iv: CryptoJS.enc.Utf8.parse(keyStr),
+				mode: CryptoJS.mode.CBC,
+				padding: CryptoJS.pad.Pkcs7,
+			}).toString(CryptoJS.enc.Utf8);
+			return resolve(dec);
+		} catch (e) {
+			console.log(1);
+			console.log(e)
+			reject(e);
+		}
+		
+	});
+	return p;
 }
 
 export { encryptData, decryptData }

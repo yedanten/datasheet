@@ -52,20 +52,17 @@ export class HomeComponent implements OnInit {
       window.electronAPI.saveMeta(cellsMeta);
     });
     window.electronAPI.importCSV((value: Array<any>) => {
-      console.log(value.length);
       this.updateTabel(value);
+    });
+    window.electronAPI.appendCSV((value: Array<any>) => {
+      this.appendTabel(value);
     });
     window.electronAPI.onChangePass(() => {
       const modalRef = this.modalService.open(ChangepassComponent);
       modalRef.result.then(
         (result) => {
           window.electronAPI.onChangeKey(result);
-          const colHeaders: Array<any> = this.hotRegisterer.getInstance(this.id).getColHeader();
-          const saveData: Array<any> = this.hotRegisterer.getInstance(this.id).getData();
-          saveData.unshift(colHeaders);
-          const cellsMeta: Array<any> = this.hotRegisterer.getInstance(this.id).getCellsMeta();
-          window.electronAPI.saveData(saveData);
-          window.electronAPI.saveMeta(cellsMeta);
+          window.electronAPI.notClose();
         },
         (reason) => {
           console.log(reason);
@@ -78,6 +75,7 @@ export class HomeComponent implements OnInit {
   ngAfterViewInit() {
     // 创建行补齐重复值检查属性
     this.hotRegisterer.getInstance(this.id).addHook('afterCreateRow', (index: number, amount: number, source?: string) => {
+      console.log(index)
       window.electronAPI.notClose();
       const totalCol = this.hotRegisterer.getInstance(this.id).countCols();
       let op = 1;
@@ -229,11 +227,33 @@ export class HomeComponent implements OnInit {
 
   // 重写更新表格逻辑，数据集第一行设置到表头
   private updateTabel(value: Array<any>) {
+    this.hotRegisterer.getInstance(this.id).suspendExecution();
+    this.hotRegisterer.getInstance(this.id).suspendRender();
     this.hotRegisterer.getInstance(this.id).updateSettings({
       colHeaders:value[0]
     });
     value.shift();
     this.hotRegisterer.getInstance(this.id).loadData(value);
+    this.hotRegisterer.getInstance(this.id).resumeRender();
+    this.hotRegisterer.getInstance(this.id).resumeExecution();
+  }
+
+  // 追加更新表格数据
+  private appendTabel(value: Array<any>) {
+    this.hotRegisterer.getInstance(this.id).suspendExecution();
+    this.hotRegisterer.getInstance(this.id).suspendRender();
+    this.hotRegisterer.getInstance(this.id).updateSettings({
+      colHeaders:value[0]
+    });
+    value.shift();
+    let currentData = this.hotRegisterer.getInstance(this.id).getSourceData();
+    for (let i = 0; i < this.hotRegisterer.getInstance(this.id).countEmptyRows(true); i++) {
+      currentData.pop()
+    }
+    currentData = currentData.concat(value);
+    this.hotRegisterer.getInstance(this.id).loadData(currentData);
+    this.hotRegisterer.getInstance(this.id).resumeRender();
+    this.hotRegisterer.getInstance(this.id).resumeExecution();
   }
 
   // 表格右键菜单，追加修改列名和重复值检测选项
@@ -357,6 +377,142 @@ export class HomeComponent implements OnInit {
                 }
               }
           }
+        }
+      },
+      duplicate: {
+        name: '重复值检查',
+        submenu: {
+          items: [
+            {
+              key: 'duplicate:enabled',
+              name() {
+                // 右键的是列头还是单个单元格，有不同的渲染逻辑。
+                // 右键列头，遍历该列单元格，如果有任意单元格的熟悉存在启用标志，渲染文本后面加√
+                // 右键单元格，由于存在同时选中多个单元格的情况，只要有一个单元格存在启用标志，，渲染文本后面加√
+                // 二者区分原因因为可能存在跨行跨列选取不同的单元格，该表格控件无直接获取选中单元格API，需要自己实现。
+                let label = '启用';
+                let atLeastOneDuplicate= false;
+                const ranges: CellRange = <CellRange>this.getSelectedRangeLast();
+                const selected: Array<Array<number>> = <Array<Array<number>>>this.getSelected();
+                if (ranges.from.row === -1) {
+                  atLeastOneDuplicate = checkColSelectionDuplicate(ranges, (row: number, col: number) => this.getInstance().getCellMeta(row, col));
+                } else {
+                  findLoop:for (let index = 0; index < selected.length; index += 1) {
+                    const [row1, column1, row2, column2] = selected[index]!;
+                    const startRow = Math.max(Math.min(row1, row2), 0);
+                    const endRow = Math.max(row1, row2);
+                    const startCol = Math.max(Math.min(column1, column2), 0);
+                    const endCol = Math.max(column1, column2);
+                    for (let rowIndex = startRow; rowIndex <= endRow; rowIndex += 1) {
+                      for (let columnIndex = startCol; columnIndex <= endCol; columnIndex += 1) {
+                        const seletedCellMeta = this.getCellMeta(rowIndex, columnIndex);
+                        if (typeof seletedCellMeta.duplicateIgnore !== 'undefined' && seletedCellMeta.duplicateIgnore === false && seletedCellMeta.duplicateCheck === true) {
+                          atLeastOneDuplicate = true;
+                          break findLoop;
+                        }
+                      }
+                    }
+                  }
+                }
+                if (atLeastOneDuplicate) {
+                  return `<span class="selected">${String.fromCharCode(10003)}</span>${label}`;
+                }
+                return label;
+              },
+              callback: () => {
+                // 与渲染逻辑区分理由一样。
+                // 点击时整列开启或关闭去重检测，单个单元格点击可设置例外项，以后该格子不参与检测
+                const ranges: CellRange = <CellRange>this.hotRegisterer.getInstance(this.id).getSelectedRangeLast();
+                const selected: Array<Array<number>> = <Array<Array<number>>>this.hotRegisterer.getInstance(this.id).getSelected();
+                if (ranges.from.row === -1) {
+                  const atLeastOneDuplicate = checkColSelectionDuplicate(ranges, (row: number, col: number) => this.hotRegisterer.getInstance(this.id).getCellMeta(row, col));
+
+                  for (let i = 0; i < ranges.to.row; i++) {
+                    this.hotRegisterer.getInstance(this.id).setCellMeta(i, ranges.to.col, 'duplicateIgnore', false);
+                    this.hotRegisterer.getInstance(this.id).setCellMeta(i, ranges.to.col, 'duplicateCheck', !atLeastOneDuplicate);
+                  }
+
+                  if (!atLeastOneDuplicate) {
+                    const checkResult = this.checkDuplicate(ranges.to.col);
+                    if(Object.keys(checkResult).length > 0) {
+                      this.showDuplicateWindow(ranges.to.col, checkResult);
+                    }
+                  }
+                }
+              },
+              disabled: () => {
+                const ranges: CellRange = <CellRange>this.hotRegisterer.getInstance(this.id).getSelectedRangeLast();
+                if (ranges.from.row === -1) {
+                  return false;
+                } else {
+                  return true;
+                }
+              }
+            },
+            {
+              key: 'duplicate:check',
+              name: '检查',
+              disabled: () => {
+                let atLeastOneDuplicate= false;
+                const ranges: CellRange = <CellRange>this.hotRegisterer.getInstance(this.id).getSelectedRangeLast();
+                const selected: Array<Array<number>> = <Array<Array<number>>>this.hotRegisterer.getInstance(this.id).getSelected();
+                if (ranges.from.row === -1) {
+                  atLeastOneDuplicate = checkColSelectionDuplicate(ranges, (row: number, col: number) => this.hotRegisterer.getInstance(this.id).getCellMeta(row, col));
+                } else {
+                  findLoop:for (let index = 0; index < selected.length; index += 1) {
+                    const [row1, column1, row2, column2] = selected[index]!;
+                    const startRow = Math.max(Math.min(row1, row2), 0);
+                    const endRow = Math.max(row1, row2);
+                    const startCol = Math.max(Math.min(column1, column2), 0);
+                    const endCol = Math.max(column1, column2);
+                    for (let rowIndex = startRow; rowIndex <= endRow; rowIndex += 1) {
+                      for (let columnIndex = startCol; columnIndex <= endCol; columnIndex += 1) {
+                        const seletedCellMeta = this.hotRegisterer.getInstance(this.id).getCellMeta(rowIndex, columnIndex);
+                        if (typeof seletedCellMeta.duplicateIgnore !== 'undefined' && seletedCellMeta.duplicateIgnore === false && seletedCellMeta.duplicateCheck === true) {
+                          atLeastOneDuplicate = true;
+                          break findLoop;
+                        }
+                      }
+                    }
+                  }
+                }
+                return !atLeastOneDuplicate;
+              },
+              callback: () => {
+                const ranges: CellRange = <CellRange>this.hotRegisterer.getInstance(this.id).getSelectedRangeLast();
+                const selected: Array<Array<number>> = <Array<Array<number>>>this.hotRegisterer.getInstance(this.id).getSelected();
+                if (ranges.from.row === -1) {
+                  const checkResult = this.checkDuplicate(ranges.to.col);
+                  if(Object.keys(checkResult).length > 0) {
+                    this.showDuplicateWindow(ranges.to.col, checkResult);
+                  }
+                } else {
+                  let waitingData = [];
+                  for (let index = 0; index < selected.length; index += 1) {
+                    const [row1, column1, row2, column2] = selected[index]!;
+                    const startRow = Math.max(Math.min(row1, row2), 0);
+                    const endRow = Math.max(row1, row2);
+                    const startCol = Math.max(Math.min(column1, column2), 0);
+                    const endCol = Math.max(column1, column2);
+
+                    for (let rowIndex = startRow; rowIndex <= endRow; rowIndex += 1) {
+                      for (
+                      let columnIndex = startCol;
+                      columnIndex <= endCol;
+                      columnIndex += 1
+                      ) {
+                        const seletedCellMeta = this.hotRegisterer.getInstance(this.id).getCellMeta(rowIndex, columnIndex);
+                        if (typeof seletedCellMeta.duplicateIgnore !== 'undefined') {
+                          waitingData.push(this.hotRegisterer.getInstance(this.id).getCellMeta(rowIndex, columnIndex));
+                        }
+                      }
+                    }
+                  }
+                  console.log(waitingData);
+                }
+              }
+            }
+          ]
         }
       }
     }

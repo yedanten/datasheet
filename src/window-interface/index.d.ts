@@ -2,6 +2,7 @@ export interface IElectronAPI {
   onInitData: () => string;
   onGetData: (callback: any) => void;
   importCSV: (callback: any) => void;
+  appendCSV: (callback: any) => void;
   saveData: (value: any) => void;
   openDupWindow: (value: any) => void;
   setDupObj: (callback: any) => void;

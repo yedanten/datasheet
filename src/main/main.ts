@@ -4,7 +4,7 @@ import * as os from 'os';
 import * as fsPromises from 'fs/promises';
 import * as fs from 'fs';
 import * as url from 'url';
-import { importCSV, saveFile, saveMeta } from './menuEvent';
+import { importCSV, saveFile, saveMeta, appendCSV } from './menuEvent';
 import { decryptData } from './aes'
 import * as Duplicate from './duplicate';
 
@@ -27,10 +27,11 @@ async function loadFileData(inputPass: string): Promise<boolean> {
     .then((value) => {
       return fsPromises.readFile(path.join(fileDir,'data.sdb'), 'utf8')
     }).then((value) => {
-      return new Promise((resolve, reject) => {
-        resolve(decryptData(inputPass, Buffer.from(value).toString()));
-      });
+      return decryptData(inputPass, Buffer.from(value).toString());
     }, fileNotFind).then((value) => {
+      if(value.length == 0) {
+        return false
+      }
       fileData = <string>value;
       key = inputPass;
       return true;
@@ -49,7 +50,12 @@ async function loadFileData(inputPass: string): Promise<boolean> {
 async function loadMetaData(inputPass: string) {
   fs.readFile(path.join(fileDir,'meta.sdb'),'utf8', (err, data) => {
     if(!err) {
-      meta = decryptData(inputPass!, Buffer.from(data).toString());
+      decryptData(inputPass!, Buffer.from(data).toString())
+      .then((value) => {
+        meta = value
+      }).catch((e) => {
+        throw new Error(e);
+      });
     }
   });
 }
@@ -109,6 +115,7 @@ function createWindow() {
       label: '文件',
       submenu: [
         { label: '导入csv', accelerator: isMac ? 'Command+I': 'Ctrl+I', click: importCSV },
+        { label: '追加CSV数据', click: appendCSV },
         { label: '保存', accelerator: isMac ? 'Command+S': 'Ctrl+S', click: () => { win!.webContents.send('get-data') } },
         { type: 'separator' },
         { label: '修改密码', accelerator:isMac ? 'Command+P': 'Ctrl+P', click: () => { win!.webContents.send('change-pass') } },
@@ -189,7 +196,9 @@ ipcMain.handle('first-check', () => {
   return res;
 });
 ipcMain.handle('change-key', (_event, newpass) => {
+  console.log(newpass);
   key = newpass;
+  console.log(key);
 })
 
 // rendener与主进程单向通信部分

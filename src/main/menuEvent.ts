@@ -17,7 +17,6 @@ async function importCSV(_:MenuItem, win: BrowserWindow) {
         noheader: true,
         output: "csv"
       }).fromString(data).then((csvRow: Array<any>) => {
-        console.log(csvRow);
         win.webContents.send('dialog:importCSV', csvRow);
       });
     })
@@ -40,4 +39,23 @@ async function saveMeta(data: Array<any>, key: string) {
   fs.writeFileSync(path.join(fileDir, 'meta.sdb'), fileData);
 }
 
-export { importCSV, saveFile, saveMeta }
+// 追加CSV数据
+async function appendCSV(_:MenuItem, win: BrowserWindow) {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    filters: [{ name: '全部文件', extensions: ['csv']}],
+    properties: ['openFile', 'createDirectory', 'dontAddToRecent']
+  })
+  if (!canceled) {
+    fs.readFile(filePaths[0], 'utf8', (err, data) => {
+      if (err) throw err;
+      csv({
+        noheader: true,
+        output: "csv"
+      }).fromString(data).then((csvRow: Array<any>) => {
+        win.webContents.send('dialog:appendCSV', csvRow);
+      });
+    })
+  }
+}
+
+export { importCSV, saveFile, saveMeta, appendCSV }
