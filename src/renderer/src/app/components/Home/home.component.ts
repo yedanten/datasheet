@@ -357,7 +357,7 @@ export class HomeComponent implements OnInit {
     maxRows: 999999,                            //最大行数
     minRows: 500,                               //最小行数
     minCols: 20,                                //最小列数
-    minSpareRows: 3,                            //最小底部空白行数
+    //minSpareRows: 3,                            //最小底部空白行数
     // 控件BUG，行列拖拽后在插入行列，将会引起列头绑定失败
     //manualColumnMove: true,                     //拖拽列
     //manualRowMove: true,                        //拖拽行
