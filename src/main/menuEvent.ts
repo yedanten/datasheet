@@ -2,24 +2,18 @@ import { app, dialog, BrowserWindow,MenuItem } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as csv from 'csvtojson';
+import xlsx from 'node-xlsx';
 import { encryptData } from './aes';
 
-// 从CSV里导入数据
-async function importCSV(_:MenuItem, win: BrowserWindow) {
+// 从XLS里导入数据
+async function importXLS(_:MenuItem, win: BrowserWindow) {
   const { canceled, filePaths } = await dialog.showOpenDialog({
-    filters: [{ name: '全部文件', extensions: ['csv']}],
+    filters: [{ name: '全部文件', extensions: ['xls', 'xlsx']}],
     properties: ['openFile', 'createDirectory', 'dontAddToRecent']
   })
   if (!canceled) {
-    fs.readFile(filePaths[0], 'utf8', (err, data) => {
-      if (err) throw err;
-      csv({
-        noheader: true,
-        output: "csv"
-      }).fromString(data).then((csvRow: Array<any>) => {
-        win.webContents.send('dialog:importCSV', csvRow);
-      });
-    })
+    const workSheetsFromFile = xlsx.parse(filePaths[0]);
+    win.webContents.send('dialog:importXLS', workSheetsFromFile[0].data);
   }
 }
 
@@ -39,23 +33,30 @@ async function saveMeta(data: Array<any>, key: string) {
   fs.writeFileSync(path.join(fileDir, 'meta.sdb'), fileData);
 }
 
-// 追加CSV数据
-async function appendCSV(_:MenuItem, win: BrowserWindow) {
+async function saveWinMeat(data: Object, key: string) {
+  const fileDir: string = process.platform === 'darwin' ? path.join(<string>process.env.HOME,'.safeSheet'):path.join(<string>process.env.LOCALAPPDATA, 'safeSheet');
+  const winMeata = JSON.stringify(data);
+  fs.writeFileSync(path.join(fileDir, 'winmeta.sdb'), winMeata);
+}
+
+// 追加XLS数据
+async function appendXLS(_:MenuItem, win: BrowserWindow) {
   const { canceled, filePaths } = await dialog.showOpenDialog({
-    filters: [{ name: '全部文件', extensions: ['csv']}],
-    properties: ['openFile', 'createDirectory', 'dontAddToRecent']
+    filters: [{ name: '全部文件', extensions: ['xls', 'xlsx']}],
+    properties: ['openFile', 'createDirectory', 'multiSelections', 'dontAddToRecent']
   })
   if (!canceled) {
-    fs.readFile(filePaths[0], 'utf8', (err, data) => {
-      if (err) throw err;
-      csv({
-        noheader: true,
-        output: "csv"
-      }).fromString(data).then((csvRow: Array<any>) => {
-        win.webContents.send('dialog:appendCSV', csvRow);
-      });
-    })
+    let data: Array<any> = [];
+    filePaths.forEach((path) => {
+      const workSheetsFromFile = xlsx.parse(path);
+      let trueData = workSheetsFromFile[0].data;
+      trueData.shift();
+      trueData.map((item) => {
+        data.push(item);
+      })
+    });
+    win.webContents.send('dialog:appendXLS', data);
   }
 }
 
-export { importCSV, saveFile, saveMeta, appendCSV }
+export { importXLS, saveFile, saveMeta, appendXLS, saveWinMeat }

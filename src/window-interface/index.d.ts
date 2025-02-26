@@ -1,8 +1,8 @@
 export interface IElectronAPI {
   onInitData: () => string;
   onGetData: (callback: any) => void;
-  importCSV: (callback: any) => void;
-  appendCSV: (callback: any) => void;
+  importXLS: (callback: any) => void;
+  appendXLS: (callback: any) => void;
   saveData: (value: any) => void;
   openDupWindow: (value: any) => void;
   setDupObj: (callback: any) => void;
@@ -11,6 +11,7 @@ export interface IElectronAPI {
   onVerifyPassword: (value: string ) => Promise<boolean>;
   onFirstStartup: () => Promise<boolean>;
   saveMeta: (value: any) => void;
+  saveWinMeta: () => void;
   onInitMeta: () => string;
   onChangePass: (callback: any) => void;
   onChangeKey: (value: string) => void;

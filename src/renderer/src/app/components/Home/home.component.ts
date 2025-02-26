@@ -6,6 +6,7 @@ import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { ModalComponent } from '../Modal/modal.component';
 import { ChangepassComponent } from '../ChangePass/changepass.component';
 import { checkColSelectionDuplicate } from '../../utils';
+import { BaseRenderer, textRenderer, htmlRenderer } from 'handsontable/renderers';
 
 @Component({
   selector: 'app-home',
@@ -50,11 +51,12 @@ export class HomeComponent implements OnInit {
       const cellsMeta: Array<any> = this.hotRegisterer.getInstance(this.id).getCellsMeta();
       window.electronAPI.saveData(saveData);
       window.electronAPI.saveMeta(cellsMeta);
+      window.electronAPI.saveWinMeta();
     });
-    window.electronAPI.importCSV((value: Array<any>) => {
+    window.electronAPI.importXLS((value: Array<any>) => {
       this.updateTabel(value);
     });
-    window.electronAPI.appendCSV((value: Array<any>) => {
+    window.electronAPI.appendXLS((value: Array<any>) => {
       this.appendTabel(value);
     });
     window.electronAPI.onChangePass(() => {
@@ -75,12 +77,11 @@ export class HomeComponent implements OnInit {
   ngAfterViewInit() {
     // 创建行补齐重复值检查属性
     this.hotRegisterer.getInstance(this.id).addHook('afterCreateRow', (index: number, amount: number, source?: string) => {
-      console.log(index)
       window.electronAPI.notClose();
       const totalCol = this.hotRegisterer.getInstance(this.id).countCols();
-      let op = 1;
-      if (source === 'ContextMenu.rowBelow') {
-        op = -1;
+      let op = -1;
+      if (source === 'ContextMenu.rowAbove') {
+        op = 1;
       }
       for (let i = 0; i < totalCol; i++) {
         const originCell = this.hotRegisterer.getInstance(this.id).getCellMeta(index+op, i);
@@ -130,18 +131,17 @@ export class HomeComponent implements OnInit {
         // 由于可能存在 插入/删除 行/列 行为后，再次编辑单元格，需要把视觉行列索引转为物理行列索引
         const row = this.hotRegisterer.getInstance(this.id).toPhysicalRow(change[0][0]);
         const col = this.hotRegisterer.getInstance(this.id).toPhysicalColumn(change[0][1]);
-
-        // 该列开启重复值检查并且该单元格未忽略单元格检查，则触发检查事件
-        const cellMeta = this.hotRegisterer.getInstance(this.id).getCellMeta(row, col);
-        if (cellMeta.duplicateCheck && cellMeta.duplicateIgnore === false && change[0][3] !== null && change[0][3] !== '') {
-          const checkResult = this.checkDuplicate(col, cellMeta);
-          // 存在重复结果，弹出新窗口显示
-          if(Object.keys(checkResult).length > 0) {
-            this.showDuplicateWindow(col, checkResult);
-          }
-        }
       }
     });
+
+    // 列宽最大值限制
+    this.hotRegisterer.getInstance(this.id).addHook('modifyColWidth', (width: number, column: number, source?: string) => {
+      if(width > 340) {
+        return 340;
+      }
+    });
+
+    // modifyColWidth
 
     // 选中单元格后触发,调试用
     // this.hotRegisterer.getInstance(this.id).addHook('afterSelection', (...e) => {
@@ -156,12 +156,13 @@ export class HomeComponent implements OnInit {
   // 检查逻辑：选中的该列，每个单元格按 ; 分隔元素，如果该单元格是空的就跳过。
   //          在排除该元素所属单元格后，与其他元素对比，将匹配一致的元素所属单元格加入list。
   //          最后返回该list给调用方
-  private checkDuplicate(colIndex: number, editCellMeta?: any): object {
+  private checkDuplicate(colIndex: number, waitingDataCellMeta?: Array<any>): object {
+    console.log(waitingDataCellMeta);
     let duplicateObject = Object.create(null);
     const colData = this.hotRegisterer.getInstance(this.id).getDataAtCol(colIndex);
 
-    // 直接右键列头触发整列检测
-    if (typeof editCellMeta === 'undefined') {
+    if (typeof waitingDataCellMeta === 'undefined') {
+      // 直接右键列头触发整列检测
       colData.forEach((cellData: string | null, rowIndex: number) => {
         if (cellData === null || cellData === '') {
           return;
@@ -182,24 +183,27 @@ export class HomeComponent implements OnInit {
           });
         });
       });
-    // 编辑单个单元格时触发检测，检测逻辑一致
     } else {
-      const editCellData = this.hotRegisterer.getInstance(this.id).getDataAtCell(editCellMeta.visualRow, editCellMeta.visualCol);
-      const spData: Array<string> = editCellData.split(';');
-      colData.forEach((cellData: string | null, rowIndex: number) => {
-        if (this.hotRegisterer.getInstance(this.id).getCellMeta(rowIndex, colIndex).duplicateIgnore
-          || cellData === null
-          || cellData === ''
-          || this.hotRegisterer.getInstance(this.id).getCellMeta(rowIndex, colIndex).row === editCellMeta.row) {
+      let waitData: Array<any> = [];
+      waitingDataCellMeta.forEach((cellMeta: any, rowIndex: number) => {
+        if(cellMeta === null || cellMeta === '') {
           return;
         }
+        const cellData = this.hotRegisterer.getInstance(this.id).getDataAtCell(cellMeta.visualRow, cellMeta.visualCol);
+        const spData: Array<string> = cellData.split(';');
         spData.forEach((spDataElement: string) => {
-          const expr = new RegExp(`(^${spDataElement};|;${spDataElement};|;${spDataElement}$)`);
-          const flag = expr.test(cellData) || (cellData === spDataElement);
-          if (flag) {
-            if(typeof (duplicateObject[editCellMeta.row+1]) === 'undefined') duplicateObject[editCellMeta.row+1] = [];
-            duplicateObject[editCellMeta.row+1].push(rowIndex+1);
-          }
+          let diffData = [...colData];
+          delete diffData[cellMeta.visualRow];
+          const found = diffData.findIndex((colDataElement: string | undefined | null, diffIndex: number) => {
+            if (typeof (colDataElement) !== 'undefined' && colDataElement !== null && colDataElement !== '') {
+              const expr = new RegExp(`(^${spDataElement};|;${spDataElement};|;${spDataElement}$)`);
+              const flag =  expr.test(colDataElement) || (colDataElement === spDataElement);
+              if (flag) {
+                if(typeof (duplicateObject[cellMeta.visualRow+1]) === 'undefined') duplicateObject[cellMeta.visualRow+1] = [];
+                duplicateObject[cellMeta.visualRow+1].push(diffIndex+1);
+              }
+            }
+          });
         });
       });
     }
@@ -242,16 +246,14 @@ export class HomeComponent implements OnInit {
   private appendTabel(value: Array<any>) {
     this.hotRegisterer.getInstance(this.id).suspendExecution();
     this.hotRegisterer.getInstance(this.id).suspendRender();
-    this.hotRegisterer.getInstance(this.id).updateSettings({
-      colHeaders:value[0]
-    });
-    value.shift();
+
     let currentData = this.hotRegisterer.getInstance(this.id).getSourceData();
     for (let i = 0; i < this.hotRegisterer.getInstance(this.id).countEmptyRows(true); i++) {
       currentData.pop()
     }
     currentData = currentData.concat(value);
     this.hotRegisterer.getInstance(this.id).loadData(currentData);
+
     this.hotRegisterer.getInstance(this.id).resumeRender();
     this.hotRegisterer.getInstance(this.id).resumeExecution();
   }
@@ -301,84 +303,6 @@ export class HomeComponent implements OnInit {
             });
         }
       },
-      check_duplicate: {
-        name() {
-         // 右键的是列头还是单个单元格，有不同的渲染逻辑。
-         // 右键列头，遍历该列单元格，如果有任意单元格的熟悉存在启用标志，渲染文本后面加√
-         // 右键单元格，由于存在同时选中多个单元格的情况，只要有一个单元格存在启用标志，，渲染文本后面加√
-         // 二者区分原因因为可能存在跨行跨列选取不同的单元格，该表格控件无直接获取选中单元格API，需要自己实现。
-         let label = '重复值检查';
-         let atLeastOneDuplicate= false;
-         const ranges: CellRange = <CellRange>this.getSelectedRangeLast();
-         const selected: Array<Array<number>> = <Array<Array<number>>>this.getSelected();
-         if (ranges.from.row === -1) {
-          atLeastOneDuplicate = checkColSelectionDuplicate(ranges, (row: number, col: number) => this.getInstance().getCellMeta(row, col));
-         } else {
-            findLoop:for (let index = 0; index < selected.length; index += 1) {
-              const [row1, column1, row2, column2] = selected[index]!;
-              const startRow = Math.max(Math.min(row1, row2), 0);
-              const endRow = Math.max(row1, row2);
-              const startCol = Math.max(Math.min(column1, column2), 0);
-              const endCol = Math.max(column1, column2);
-              for (let rowIndex = startRow; rowIndex <= endRow; rowIndex += 1) {
-                for (let columnIndex = startCol; columnIndex <= endCol; columnIndex += 1) {
-                  const seletedCellMeta = this.getCellMeta(rowIndex, columnIndex);
-                  if (typeof seletedCellMeta.duplicateIgnore !== 'undefined' && seletedCellMeta.duplicateIgnore === false && seletedCellMeta.duplicateCheck === true) {
-                    atLeastOneDuplicate = true;
-                    break findLoop;
-                  }
-                }
-              }
-            }
-         }
-         if (atLeastOneDuplicate) {
-          return `<span class="selected">${String.fromCharCode(10003)}</span>${label}`;
-         }
-         return label;
-        },
-        callback: () => {
-          // 与渲染逻辑区分理由一样。
-          // 点击时整列开启或关闭去重检测，单个单元格点击可设置例外项，以后该格子不参与检测
-          const ranges: CellRange = <CellRange>this.hotRegisterer.getInstance(this.id).getSelectedRangeLast();
-          const selected: Array<Array<number>> = <Array<Array<number>>>this.hotRegisterer.getInstance(this.id).getSelected();
-          if (ranges.from.row === -1) {
-            const atLeastOneDuplicate = checkColSelectionDuplicate(ranges, (row: number, col: number) => this.hotRegisterer.getInstance(this.id).getCellMeta(row, col));
-
-            for (let i = 0; i < ranges.to.row; i++) {
-              this.hotRegisterer.getInstance(this.id).setCellMeta(i, ranges.to.col, 'duplicateIgnore', false);
-              this.hotRegisterer.getInstance(this.id).setCellMeta(i, ranges.to.col, 'duplicateCheck', !atLeastOneDuplicate);
-            }
-
-            if (!atLeastOneDuplicate) {
-              const checkResult = this.checkDuplicate(ranges.to.col);
-              if(Object.keys(checkResult).length > 0) {
-                this.showDuplicateWindow(ranges.to.col, checkResult);
-              }
-            }
-          } else {
-              for (let index = 0; index < selected.length; index += 1) {
-                const [row1, column1, row2, column2] = selected[index]!;
-                const startRow = Math.max(Math.min(row1, row2), 0);
-                const endRow = Math.max(row1, row2);
-                const startCol = Math.max(Math.min(column1, column2), 0);
-                const endCol = Math.max(column1, column2);
-
-                for (let rowIndex = startRow; rowIndex <= endRow; rowIndex += 1) {
-                  for (
-                    let columnIndex = startCol;
-                    columnIndex <= endCol;
-                    columnIndex += 1
-                  ) {
-                    const seletedCellMeta = this.hotRegisterer.getInstance(this.id).getCellMeta(rowIndex, columnIndex);
-                    if (typeof seletedCellMeta.duplicateIgnore !== 'undefined') {
-                      this.hotRegisterer.getInstance(this.id).setCellMeta(rowIndex, columnIndex, 'duplicateIgnore', !seletedCellMeta.duplicateIgnore);
-                    }
-                  }
-                }
-              }
-          }
-        }
-      },
       duplicate: {
         name: '重复值检查',
         submenu: {
@@ -420,14 +344,20 @@ export class HomeComponent implements OnInit {
                 return label;
               },
               callback: () => {
-                // 与渲染逻辑区分理由一样。
-                // 点击时整列开启或关闭去重检测，单个单元格点击可设置例外项，以后该格子不参与检测
                 const ranges: CellRange = <CellRange>this.hotRegisterer.getInstance(this.id).getSelectedRangeLast();
-                const selected: Array<Array<number>> = <Array<Array<number>>>this.hotRegisterer.getInstance(this.id).getSelected();
+                // 修改该列渲染器为html渲染器
+                this.hotRegisterer.getInstance(this.id).updateSettings({
+                  columns: (index: number) => {
+                    return {
+                      renderer: index === ranges.from.col ? htmlRenderer : textRenderer
+                    }
+                  }
+                });
+                // 给该列所有单元格加检测属性
                 if (ranges.from.row === -1) {
                   const atLeastOneDuplicate = checkColSelectionDuplicate(ranges, (row: number, col: number) => this.hotRegisterer.getInstance(this.id).getCellMeta(row, col));
 
-                  for (let i = 0; i < ranges.to.row; i++) {
+                  for (let i = 0; i <= ranges.to.row; i++) {
                     this.hotRegisterer.getInstance(this.id).setCellMeta(i, ranges.to.col, 'duplicateIgnore', false);
                     this.hotRegisterer.getInstance(this.id).setCellMeta(i, ranges.to.col, 'duplicateCheck', !atLeastOneDuplicate);
                   }
@@ -483,9 +413,7 @@ export class HomeComponent implements OnInit {
                 const selected: Array<Array<number>> = <Array<Array<number>>>this.hotRegisterer.getInstance(this.id).getSelected();
                 if (ranges.from.row === -1) {
                   const checkResult = this.checkDuplicate(ranges.to.col);
-                  if(Object.keys(checkResult).length > 0) {
-                    this.showDuplicateWindow(ranges.to.col, checkResult);
-                  }
+                  this.showDuplicateWindow(ranges.to.col, checkResult);
                 } else {
                   let waitingData = [];
                   for (let index = 0; index < selected.length; index += 1) {
@@ -508,7 +436,10 @@ export class HomeComponent implements OnInit {
                       }
                     }
                   }
-                  console.log(waitingData);
+                  const checkResult = this.checkDuplicate(waitingData[0].col, waitingData);
+                  if(Object.keys(checkResult).length > 0) {
+                    this.showDuplicateWindow(ranges.to.col, checkResult);
+                  }
                 }
               }
             }
@@ -544,6 +475,6 @@ export class HomeComponent implements OnInit {
     bindRowsWithHeaders: true,                  //绑定行标题
     contextMenu: this.contextMenuSettings,      //允许右键菜单
     themeName: 'ht-theme-main',                 //主题
-    licenseKey: 'non-commercial-and-evaluation' //白嫖lincese
+    licenseKey: 'non-commercial-and-evaluation', //白嫖lincese
   }
 }

@@ -4,7 +4,7 @@ import * as os from 'os';
 import * as fsPromises from 'fs/promises';
 import * as fs from 'fs';
 import * as url from 'url';
-import { importCSV, saveFile, saveMeta, appendCSV } from './menuEvent';
+import { importXLS, saveFile, saveMeta, appendXLS, saveWinMeat } from './menuEvent';
 import { decryptData } from './aes'
 import * as Duplicate from './duplicate';
 
@@ -48,7 +48,7 @@ async function loadFileData(inputPass: string): Promise<boolean> {
 
 // 加载单元格元数据
 async function loadMetaData(inputPass: string) {
-  fs.readFile(path.join(fileDir,'meta.sdb'),'utf8', (err, data) => {
+  fs.readFile(path.join(fileDir,'meta.sdb'), 'utf8', (err, data) => {
     if(!err) {
       decryptData(inputPass!, Buffer.from(data).toString())
       .then((value) => {
@@ -73,13 +73,25 @@ async function initEnv(inputPass: string): Promise<boolean> {
 // 创建窗口
 function createWindow() {
   // 获取显示器大小
-  const size = screen.getPrimaryDisplay().workAreaSize;
+  let {width, height} = screen.getPrimaryDisplay().workAreaSize;
+  let x = 0;
+  let y = 0;
+  try {
+    const winMeta = JSON.parse(fs.readFileSync(path.join(fileDir, 'winmeta.sdb'), { encoding: 'utf-8' }));
+    width = winMeta.size[0];
+    height = winMeta.size[1];
+    x = winMeta.position[0];
+    y = winMeta.position[1];
+  } catch(e) {
+    width = width/2;
+    height = height/3*2;
+  }
 
   win = new BrowserWindow({
-    x: 0,
-    y: 0,
-    width: size.width/2,
-    height: size.height/3*2,
+    x: x,
+    y: y,
+    width: width,
+    height: height,
     resizable: true,
     show: false,
     webPreferences: {
@@ -114,8 +126,8 @@ function createWindow() {
     {
       label: '文件',
       submenu: [
-        { label: '导入csv', accelerator: isMac ? 'Command+I': 'Ctrl+I', click: importCSV },
-        { label: '追加CSV数据', click: appendCSV },
+        { label: '导入EXCEL', accelerator: isMac ? 'Command+I': 'Ctrl+I', click: importXLS },
+        { label: '追加EXCEL数据', click: appendXLS },
         { label: '保存', accelerator: isMac ? 'Command+S': 'Ctrl+S', click: () => { win!.webContents.send('get-data') } },
         { type: 'separator' },
         { label: '修改密码', accelerator:isMac ? 'Command+P': 'Ctrl+P', click: () => { win!.webContents.send('change-pass') } },
@@ -196,9 +208,7 @@ ipcMain.handle('first-check', () => {
   return res;
 });
 ipcMain.handle('change-key', (_event, newpass) => {
-  console.log(newpass);
   key = newpass;
-  console.log(key);
 })
 
 // rendener与主进程单向通信部分
@@ -209,6 +219,24 @@ ipcMain.on('save-data', (_event, value) => {
 
 ipcMain.on('save-meta', (_event, value) => {
   saveMeta(value, key!);
+  winCanClosedFlag = true;
+});
+
+ipcMain.on('save-winmeta', (_event) => {
+  let meta = {};
+  Object.defineProperties(meta, {
+    position: {
+      value: win!.getPosition(),
+      enumerable: true,
+      writable: true
+    },
+    size: {
+      value: win!.getSize(),
+      enumerable: true,
+      writable: true
+    }
+  });
+  saveWinMeat(meta, key!);
   winCanClosedFlag = true;
 });
 
