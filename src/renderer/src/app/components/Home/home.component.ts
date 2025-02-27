@@ -5,7 +5,8 @@ import { MenuItemConfig, DetailedSettings } from 'handsontable/plugins/contextMe
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { ModalComponent } from '../Modal/modal.component';
 import { ChangepassComponent } from '../ChangePass/changepass.component';
-import { checkColSelectionDuplicate } from '../../utils';
+import { checkColSelectionDuplicate, CustomEditor } from '../../utils';
+import { TextEditor } from 'handsontable/editors/textEditor';
 import { BaseRenderer, textRenderer, htmlRenderer } from 'handsontable/renderers';
 
 @Component({
@@ -144,11 +145,11 @@ export class HomeComponent implements OnInit {
     // modifyColWidth
 
     // 选中单元格后触发,调试用
-    // this.hotRegisterer.getInstance(this.id).addHook('afterSelection', (...e) => {
-    //   if (e[0] !== -1) {
-    //     console.log(this.hotRegisterer.getInstance(this.id).getCellsMeta());
-    //   };
-    // });
+    /*this.hotRegisterer.getInstance(this.id).addHook('afterSelection', (...e) => {
+      if (e[0] !== -1) {
+        console.log(this.hotRegisterer.getInstance(this.id).getCellEditor(0,3));
+      };
+    });*/
   }
 
   // 检查单元格重复情况
@@ -157,7 +158,6 @@ export class HomeComponent implements OnInit {
   //          在排除该元素所属单元格后，与其他元素对比，将匹配一致的元素所属单元格加入list。
   //          最后返回该list给调用方
   private checkDuplicate(colIndex: number, waitingDataCellMeta?: Array<any>): object {
-    console.log(waitingDataCellMeta);
     let duplicateObject = Object.create(null);
     const colData = this.hotRegisterer.getInstance(this.id).getDataAtCol(colIndex);
 
@@ -344,19 +344,12 @@ export class HomeComponent implements OnInit {
                 return label;
               },
               callback: () => {
+                window.electronAPI.notClose();
                 const ranges: CellRange = <CellRange>this.hotRegisterer.getInstance(this.id).getSelectedRangeLast();
-                // 修改该列渲染器为html渲染器
-                this.hotRegisterer.getInstance(this.id).updateSettings({
-                  columns: (index: number) => {
-                    return {
-                      renderer: index === ranges.from.col ? htmlRenderer : textRenderer
-                    }
-                  }
-                });
+
                 // 给该列所有单元格加检测属性
                 if (ranges.from.row === -1) {
                   const atLeastOneDuplicate = checkColSelectionDuplicate(ranges, (row: number, col: number) => this.hotRegisterer.getInstance(this.id).getCellMeta(row, col));
-
                   for (let i = 0; i <= ranges.to.row; i++) {
                     this.hotRegisterer.getInstance(this.id).setCellMeta(i, ranges.to.col, 'duplicateIgnore', false);
                     this.hotRegisterer.getInstance(this.id).setCellMeta(i, ranges.to.col, 'duplicateCheck', !atLeastOneDuplicate);
@@ -474,6 +467,8 @@ export class HomeComponent implements OnInit {
     manualRowResize: true,                      //允许手动拉伸行高
     bindRowsWithHeaders: true,                  //绑定行标题
     contextMenu: this.contextMenuSettings,      //允许右键菜单
+    renderer: 'html',
+    editor:CustomEditor,
     themeName: 'ht-theme-main',                 //主题
     licenseKey: 'non-commercial-and-evaluation', //白嫖lincese
   }
