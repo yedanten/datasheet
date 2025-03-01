@@ -11,7 +11,10 @@ function checkColSelectionDuplicate(ranges: CellRange, comparator: any): boolean
   return result;
 }
 
-function extractTextFromHTML(htmlString: string): string {
+function extractTextFromHTML(htmlString: string | null): string {
+  if (htmlString === null) {
+    return '';
+  }
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = htmlString;
   return tempDiv.textContent || tempDiv.innerText || '';
@@ -22,6 +25,15 @@ function escapeHTML(html: string): string {
   const txt = document.createTextNode(html)
   elem.appendChild(txt)
   return elem.innerHTML;
+}
+
+function getRandColor() {
+  const randomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+  const R = randomInt(150,255).toString();
+  const G = randomInt(150,255).toString();
+  const B = randomInt(0,255).toString();
+  return `rgb(${R},${G},${B})`;
+
 }
 
 class CustomEditor extends TextEditor {
@@ -62,4 +74,4 @@ class CustomEditor extends TextEditor {
   }
 }
 
-export { checkColSelectionDuplicate, CustomEditor }
+export { checkColSelectionDuplicate, CustomEditor, escapeHTML, extractTextFromHTML, getRandColor }

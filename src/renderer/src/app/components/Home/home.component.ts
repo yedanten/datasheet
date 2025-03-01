@@ -5,7 +5,7 @@ import { MenuItemConfig, DetailedSettings } from 'handsontable/plugins/contextMe
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { ModalComponent } from '../Modal/modal.component';
 import { ChangepassComponent } from '../ChangePass/changepass.component';
-import { checkColSelectionDuplicate, CustomEditor } from '../../utils';
+import { checkColSelectionDuplicate, CustomEditor, escapeHTML, extractTextFromHTML, getRandColor } from '../../utils';
 import { TextEditor } from 'handsontable/editors/textEditor';
 import { BaseRenderer, textRenderer, htmlRenderer } from 'handsontable/renderers';
 
@@ -142,14 +142,54 @@ export class HomeComponent implements OnInit {
       }
     });
 
-    // modifyColWidth
-
     // 选中单元格后触发,调试用
     /*this.hotRegisterer.getInstance(this.id).addHook('afterSelection', (...e) => {
       if (e[0] !== -1) {
         console.log(this.hotRegisterer.getInstance(this.id).getCellEditor(0,3));
       };
     });*/
+  }
+
+  // 重复数据添加相同背景色
+  private setDuplicateColor(colIndex: number, duplicateMap: any) {
+    this.hotRegisterer.getInstance(this.id).suspendExecution();
+    this.hotRegisterer.getInstance(this.id).suspendRender();
+
+    const rows = Object.keys(duplicateMap);
+    rows.forEach((key: string) => {
+      const row = parseInt(key)-1;
+      const keyCell = this.hotRegisterer.getInstance(this.id).getCell(row, colIndex);
+      const keyCellSp = keyCell!.getElementsByTagName('span');
+
+      for (let i=0; i < keyCellSp.length; i++) {
+        const plain = keyCellSp[i].innerText.trim();
+        duplicateMap[key].forEach((value: number) => {
+          console.log(value);
+          const duCell = this.hotRegisterer.getInstance(this.id).getCell(value-1, colIndex);
+          const duCellSp = duCell!.getElementsByTagName('span');
+          let duCellSpDataArray = [];
+          for (let j=0; j < duCellSp.length; j++) {
+            duCellSpDataArray.push(duCellSp[j].innerText);
+          }
+          const duIndex = duCellSpDataArray.indexOf(plain);
+          if(duIndex === -1) {
+            return;
+          }
+          console.log(duCellSp[duIndex])
+
+          if (duCellSp[duIndex].style.background != '') {
+            keyCellSp[i].style.background = duCellSp[duIndex].style.background;
+          } else {
+            keyCellSp[i].style.background = getRandColor();
+            duCellSp[duIndex].style.background = keyCellSp[i].style.background;
+          }
+
+        });
+      }
+    });
+
+    this.hotRegisterer.getInstance(this.id).resumeRender();
+    this.hotRegisterer.getInstance(this.id).resumeExecution();
   }
 
   // 检查单元格重复情况
@@ -159,30 +199,31 @@ export class HomeComponent implements OnInit {
   //          最后返回该list给调用方
   private checkDuplicate(colIndex: number, waitingDataCellMeta?: Array<any>): object {
     let duplicateObject = Object.create(null);
-    const colData = this.hotRegisterer.getInstance(this.id).getDataAtCol(colIndex);
+    const originColData = this.hotRegisterer.getInstance(this.id).getDataAtCol(colIndex);
+    const colData = originColData.map((value) => {
+      return extractTextFromHTML(value).trim();
+    });
 
     if (typeof waitingDataCellMeta === 'undefined') {
-      // 直接右键列头触发整列检测
-      colData.forEach((cellData: string | null, rowIndex: number) => {
-        if (cellData === null || cellData === '') {
-          return;
+      for (let i=0; i < colData.length; i++) {
+        if (colData[i] === null || colData[i] === '') {
+          continue;
         }
-        const spData: Array<string> = cellData.split(';');
-        spData.forEach((spDataElement: string) => {
-          let diffData = [...colData];
-          delete diffData[rowIndex];
-          const found = diffData.findIndex((colDataElement: string | undefined | null, diffIndex: number) => {
-            if (typeof (colDataElement) !== 'undefined' && colDataElement !== null && colDataElement !== '') {
-              const expr = new RegExp(`(^${spDataElement};|;${spDataElement};|;${spDataElement}$)`);
-              const flag =  expr.test(colDataElement) || (colDataElement === spDataElement);
-              if (flag) {
-                if(typeof (duplicateObject[rowIndex+1]) === 'undefined') duplicateObject[rowIndex+1] = [];
-                duplicateObject[rowIndex+1].push(diffIndex+1);
-              }
-            }
+        const currentCellDataArray = colData[i].split(';');
+        for (let j=(i+1); j < colData.length; j++ ) {
+          const next = colData[j].split(';');
+          const nextCellDataArray = next.map((value) => {
+            return value.trim();
           });
-        });
-      });
+          const flag = currentCellDataArray.some((value) => {
+            return nextCellDataArray.includes(value.trim());
+          });
+          if (flag) {
+            if(typeof (duplicateObject[i+1]) === 'undefined') duplicateObject[i+1] = [];
+            duplicateObject[i+1].push(j+1);
+          }
+        }
+      }
     } else {
       let waitData: Array<any> = [];
       waitingDataCellMeta.forEach((cellMeta: any, rowIndex: number) => {
@@ -190,7 +231,8 @@ export class HomeComponent implements OnInit {
           return;
         }
         const cellData = this.hotRegisterer.getInstance(this.id).getDataAtCell(cellMeta.visualRow, cellMeta.visualCol);
-        const spData: Array<string> = cellData.split(';');
+        const cellDataStr = extractTextFromHTML(cellData);
+        const spData: Array<string> = cellDataStr.split(';');
         spData.forEach((spDataElement: string) => {
           let diffData = [...colData];
           delete diffData[cellMeta.visualRow];
@@ -200,7 +242,9 @@ export class HomeComponent implements OnInit {
               const flag =  expr.test(colDataElement) || (colDataElement === spDataElement);
               if (flag) {
                 if(typeof (duplicateObject[cellMeta.visualRow+1]) === 'undefined') duplicateObject[cellMeta.visualRow+1] = [];
-                duplicateObject[cellMeta.visualRow+1].push(diffIndex+1);
+                if (!duplicateObject[cellMeta.visualRow+1].includes(diffIndex+1)) {
+                  duplicateObject[cellMeta.visualRow+1].push(diffIndex+1);
+                }
               }
             }
           });
@@ -212,6 +256,7 @@ export class HomeComponent implements OnInit {
 
   // 显示重复值检查窗口
   private showDuplicateWindow(colIndex: number, duplicateMap: any) {
+    console.log(duplicateMap);
     let data: any = [];
     const rows = Object.keys(duplicateMap);
     rows.forEach((key: string) => {
@@ -220,11 +265,15 @@ export class HomeComponent implements OnInit {
         info.push({
           row: item,
           col: colIndex,
-          cellData: this.hotRegisterer.getInstance(this.id).getDataAtCell(item-1, colIndex),
+          cellData: extractTextFromHTML(this.hotRegisterer.getInstance(this.id).getDataAtCell(item-1, colIndex)),
           cellMeta: this.hotRegisterer.getInstance(this.id).getCellMeta(item-1, colIndex)
         });
       });
-      data.push({ row_no: key, dupCellsInfo: info, selfCellData: this.hotRegisterer.getInstance(this.id).getDataAtCell(parseInt(key)-1, colIndex) });
+      data.push({
+        row_no: key,
+        dupCellsInfo: info,
+        selfCellData: extractTextFromHTML(this.hotRegisterer.getInstance(this.id).getDataAtCell(parseInt(key)-1, colIndex))
+      });
     });
     window.electronAPI.openDupWindow(data);
   }
@@ -351,6 +400,18 @@ export class HomeComponent implements OnInit {
                 if (ranges.from.row === -1) {
                   const atLeastOneDuplicate = checkColSelectionDuplicate(ranges, (row: number, col: number) => this.hotRegisterer.getInstance(this.id).getCellMeta(row, col));
                   for (let i = 0; i <= ranges.to.row; i++) {
+
+
+                    const originData = extractTextFromHTML(this.hotRegisterer.getInstance(this.id).getDataAtCell(i, ranges.to.col));
+                    const originDataArray = originData.split(';');
+                    const newDataArray = originDataArray.map((value: string) => {
+                      if (value === null || value === '') {
+                        return null;
+                      }
+                      return '<span>'+escapeHTML(value)+'</span>';
+                    });
+                    this.hotRegisterer.getInstance(this.id).setDataAtCell(i, ranges.to.col, newDataArray.join(';'));
+
                     this.hotRegisterer.getInstance(this.id).setCellMeta(i, ranges.to.col, 'duplicateIgnore', false);
                     this.hotRegisterer.getInstance(this.id).setCellMeta(i, ranges.to.col, 'duplicateCheck', !atLeastOneDuplicate);
                   }
@@ -359,6 +420,7 @@ export class HomeComponent implements OnInit {
                     const checkResult = this.checkDuplicate(ranges.to.col);
                     if(Object.keys(checkResult).length > 0) {
                       this.showDuplicateWindow(ranges.to.col, checkResult);
+                      this.setDuplicateColor(ranges.to.col, checkResult);
                     }
                   }
                 }
@@ -407,6 +469,7 @@ export class HomeComponent implements OnInit {
                 if (ranges.from.row === -1) {
                   const checkResult = this.checkDuplicate(ranges.to.col);
                   this.showDuplicateWindow(ranges.to.col, checkResult);
+                  this.setDuplicateColor(ranges.to.col, checkResult);
                 } else {
                   let waitingData = [];
                   for (let index = 0; index < selected.length; index += 1) {
@@ -432,6 +495,7 @@ export class HomeComponent implements OnInit {
                   const checkResult = this.checkDuplicate(waitingData[0].col, waitingData);
                   if(Object.keys(checkResult).length > 0) {
                     this.showDuplicateWindow(ranges.to.col, checkResult);
+                    this.setDuplicateColor(ranges.to.col, checkResult);
                   }
                 }
               }
