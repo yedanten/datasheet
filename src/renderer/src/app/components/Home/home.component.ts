@@ -116,7 +116,7 @@ export class HomeComponent implements OnInit {
     });
 
 
-    // 编辑数据后的重复值检查
+    // 编辑数据后的检查
     this.hotRegisterer.getInstance(this.id).addHook('afterChange', (change: any, source: string) => {
       // 由于导入CSV与打开应用从已有数据加载是同样的事件
       // 添加一个值用于判断情况。
@@ -145,7 +145,7 @@ export class HomeComponent implements OnInit {
     // 选中单元格后触发,调试用
     /*this.hotRegisterer.getInstance(this.id).addHook('afterSelection', (...e) => {
       if (e[0] !== -1) {
-        console.log(this.hotRegisterer.getInstance(this.id).getCellEditor(0,3));
+        console.log(this.hotRegisterer.getInstance(this.id).getDataAtCol(3));
       };
     });*/
   }
@@ -156,15 +156,18 @@ export class HomeComponent implements OnInit {
     this.hotRegisterer.getInstance(this.id).suspendRender();
 
     const rows = Object.keys(duplicateMap);
+    let reloadRows = new Set();
+
     rows.forEach((key: string) => {
       const row = parseInt(key)-1;
+      reloadRows.add(row);
       const keyCell = this.hotRegisterer.getInstance(this.id).getCell(row, colIndex);
       const keyCellSp = keyCell!.getElementsByTagName('span');
 
       for (let i=0; i < keyCellSp.length; i++) {
         const plain = keyCellSp[i].innerText.trim();
         duplicateMap[key].forEach((value: number) => {
-          console.log(value);
+          reloadRows.add(value-1);
           const duCell = this.hotRegisterer.getInstance(this.id).getCell(value-1, colIndex);
           const duCellSp = duCell!.getElementsByTagName('span');
           let duCellSpDataArray = [];
@@ -175,7 +178,6 @@ export class HomeComponent implements OnInit {
           if(duIndex === -1) {
             return;
           }
-          console.log(duCellSp[duIndex])
 
           if (duCellSp[duIndex].style.background != '') {
             keyCellSp[i].style.background = duCellSp[duIndex].style.background;
@@ -183,9 +185,15 @@ export class HomeComponent implements OnInit {
             keyCellSp[i].style.background = getRandColor();
             duCellSp[duIndex].style.background = keyCellSp[i].style.background;
           }
-
         });
       }
+    });
+
+    // 只修改render属性，无法与table控件的data源关联，调用一次setDataAtCell刷新绑定的数据源
+    const d = <Array<number>>Array.from(reloadRows);
+    d.forEach((value) => {
+      const newCellData = this.hotRegisterer.getInstance(this.id).getCell(value, colIndex)!.innerHTML;
+      this.hotRegisterer.getInstance(this.id).setDataAtCell(value, colIndex, newCellData, 'setColor');
     });
 
     this.hotRegisterer.getInstance(this.id).resumeRender();
@@ -256,7 +264,6 @@ export class HomeComponent implements OnInit {
 
   // 显示重复值检查窗口
   private showDuplicateWindow(colIndex: number, duplicateMap: any) {
-    console.log(duplicateMap);
     let data: any = [];
     const rows = Object.keys(duplicateMap);
     rows.forEach((key: string) => {
@@ -480,11 +487,7 @@ export class HomeComponent implements OnInit {
                     const endCol = Math.max(column1, column2);
 
                     for (let rowIndex = startRow; rowIndex <= endRow; rowIndex += 1) {
-                      for (
-                      let columnIndex = startCol;
-                      columnIndex <= endCol;
-                      columnIndex += 1
-                      ) {
+                      for (let columnIndex = startCol;columnIndex <= endCol; columnIndex += 1) {
                         const seletedCellMeta = this.hotRegisterer.getInstance(this.id).getCellMeta(rowIndex, columnIndex);
                         if (typeof seletedCellMeta.duplicateIgnore !== 'undefined') {
                           waitingData.push(this.hotRegisterer.getInstance(this.id).getCellMeta(rowIndex, columnIndex));
